@@ -304,6 +304,12 @@ void MCObjectFileInfo::initMachOMCObjectFileInfo(const Triple &T) {
 
 void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T, bool Large) {
   switch (T.getArch()) {
+  case Triple::loongarch32:
+  case Triple::loongarch64:
+    FDECFIEncoding = Ctx->getAsmInfo()->getCodePointerSize() == 4
+                         ? dwarf::DW_EH_PE_sdata4
+                         : dwarf::DW_EH_PE_sdata8;
+    break;
   case Triple::mips:
   case Triple::mipsel:
   case Triple::mips64:
