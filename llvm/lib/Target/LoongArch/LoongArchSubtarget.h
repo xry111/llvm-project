@@ -37,7 +37,6 @@ class LoongArchSubtarget : public LoongArchGenSubtargetInfo {
   bool HasStdExtF = false;
   bool HasStdExtD = false;
   bool HasLA64 = false;
-  bool HasFixedLLSC = false;
   bool EnableRVCHintInstrs = true;
   unsigned XLen = 32;
   unsigned ADD = LoongArch::ADD_W;
@@ -90,7 +89,6 @@ public:
   bool hasStdExtF() const { return HasStdExtF; }
   bool hasStdExtD() const { return HasStdExtD; }
   bool is64Bit() const { return HasLA64; }
-  bool hasFixedLLSC() const { return HasFixedLLSC; }
   bool enableRVCHintInstrs() const { return EnableRVCHintInstrs; }
   MVT getXLenVT() const { return XLenVT; }
   unsigned getXLen() const { return XLen; }

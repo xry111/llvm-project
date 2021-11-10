@@ -222,12 +222,6 @@ static void doMaskedAtomicBinOpExpansion(
   Register IncrReg = MI.getOperand(3).getReg();
   Register MaskReg = MI.getOperand(4).getReg();
 
-  // TODO: I'm not sure if we'll need a DBAR for some memory orders even on
-  // a CPU with fixed LL/SC.  Currently LoongArch GCC only inserts DBAR for
-  // LL/SC workaround but I have some doubts.
-  AtomicOrdering Ordering =
-      static_cast<AtomicOrdering>(MI.getOperand(5).getImm());
-
   // .loop:
   //   ll.w destreg, (alignedaddr)
   //   binop scratch, destreg, incr
@@ -308,9 +302,8 @@ bool LoongArchExpandAtomicPseudo::expandAtomicBinOp(
     doMaskedAtomicBinOpExpansion(TII, MI, DL, &MBB, LoopMBB, DoneMBB, BinOp,
                                  Width);
 
-  const LoongArchSubtarget &ST = MF->getSubtarget<LoongArchSubtarget>();
-  if (!ST.hasFixedLLSC())
-    BuildMI(LoopMBB, DL, TII->get(LoongArch::DBAR)).addImm(0);
+  BuildMI(LoopMBB, DL, TII->get(LoongArch::B)).addImm(0x8);
+  BuildMI(LoopMBB, DL, TII->get(LoongArch::DBAR)).addImm(0x700);
 
   NextMBBI = MBB.end();
   MI.eraseFromParent();
@@ -373,15 +366,7 @@ bool LoongArchExpandAtomicPseudo::expandAtomicMinMaxOp(
   Register AddrReg = MI.getOperand(3).getReg();
   Register IncrReg = MI.getOperand(4).getReg();
   Register MaskReg = MI.getOperand(5).getReg();
-  bool IsSigned = BinOp == AtomicRMWInst::Min || BinOp == AtomicRMWInst::Max;
 
-  // TODO: I'm not sure if we'll need a DBAR for some memory orders even on
-  // a CPU with fixed LL/SC.  Currently LoongArch GCC only inserts DBAR for
-  // LL/SC workaround but I have some doubts.
-  AtomicOrdering Ordering =
-      static_cast<AtomicOrdering>(MI.getOperand(IsSigned ? 7 : 6).getImm());
-
-  //
   // .loophead:
   //   ll.w destreg, (alignedaddr)
   //   and scratch2, destreg, mask
@@ -441,6 +426,8 @@ bool LoongArchExpandAtomicPseudo::expandAtomicMinMaxOp(
   // .looptail:
   //   sc.w scratch1, addr, 0
   //   beq $zero, scratch1, loop
+  //   b done     // skip the dbar insn because ...
+  //   dbar 0x700 // ... it is only a workaround for LA464 uarch
   BuildMI(LoopTailMBB, DL, TII->get(LoongArch::SC_W), Scratch1Reg)
       .addReg(Scratch1Reg)
       .addReg(AddrReg)
@@ -450,9 +437,8 @@ bool LoongArchExpandAtomicPseudo::expandAtomicMinMaxOp(
       .addReg(LoongArch::R0)
       .addMBB(LoopHeadMBB);
 
-  const LoongArchSubtarget &ST = MF->getSubtarget<LoongArchSubtarget>();
-  if (!ST.hasFixedLLSC())
-    BuildMI(LoopTailMBB, DL, TII->get(LoongArch::DBAR)).addImm(0);
+  BuildMI(LoopTailMBB, DL, TII->get(LoongArch::B)).addImm(0x8);
+  BuildMI(LoopTailMBB, DL, TII->get(LoongArch::DBAR)).addImm(0x700);
 
   NextMBBI = MBB.end();
   MI.eraseFromParent();
@@ -498,7 +484,6 @@ bool LoongArchExpandAtomicPseudo::expandAtomicCmpXchg(
   AtomicOrdering Ordering =
       static_cast<AtomicOrdering>(MI.getOperand(IsMasked ? 6 : 5).getImm());
 
-  const LoongArchSubtarget &ST = MF->getSubtarget<LoongArchSubtarget>();
   if (!IsMasked) {
     // .loophead:
     //   ll.[w|d] dest, addr, 0
@@ -514,6 +499,8 @@ bool LoongArchExpandAtomicPseudo::expandAtomicCmpXchg(
     //   or scratch, newval, $zero
     //   sc.[w|d] scratch, addr, 0
     //   beq $zero, scratch, loophead
+    //   b done     // skip the dbar insn because ...
+    //   dbar 0x700 // ... it is only a workaround for LA464 uarch
     BuildMI(LoopTailMBB, DL, TII->get(LoongArch::OR), ScratchReg)
         .addReg(NewValReg)
         .addReg(LoongArch::R0);
@@ -525,8 +512,8 @@ bool LoongArchExpandAtomicPseudo::expandAtomicCmpXchg(
         .addReg(ScratchReg)
         .addReg(LoongArch::R0)
         .addMBB(LoopHeadMBB);
-    if (!ST.hasFixedLLSC())
-      BuildMI(LoopTailMBB, DL, TII->get(LoongArch::DBAR)).addImm(0);
+    BuildMI(LoopTailMBB, DL, TII->get(LoongArch::B)).addImm(0x8);
+    BuildMI(LoopTailMBB, DL, TII->get(LoongArch::DBAR)).addImm(0x700);
   } else {
     // .loophead:
     //   ll.[w|d] dest, addr, 0
@@ -548,8 +535,10 @@ bool LoongArchExpandAtomicPseudo::expandAtomicCmpXchg(
     //   xor scratch, dest, newval
     //   and scratch, scratch, mask
     //   xor scratch, dest, scratch
-    //   sc.w scratch, addr, 0
+    //   sc.[w|d] scratch, addr, 0
     //   beq $zero, scratch, loophead
+    //   b done     // skip the dbar insn because ...
+    //   dbar 0x700 // ... it is only a workaround for LA464 uarch
     insertMaskedMerge(TII, DL, LoopTailMBB, ScratchReg, DestReg, NewValReg,
                       MaskReg, ScratchReg);
     BuildMI(LoopTailMBB, DL, TII->get(getSCForRMW(Ordering, Width)), ScratchReg)
@@ -560,9 +549,8 @@ bool LoongArchExpandAtomicPseudo::expandAtomicCmpXchg(
         .addReg(ScratchReg)
         .addReg(LoongArch::R0)
         .addMBB(LoopHeadMBB);
-
-    if (!ST.hasFixedLLSC())
-      BuildMI(LoopTailMBB, DL, TII->get(LoongArch::DBAR)).addImm(0);
+    BuildMI(LoopTailMBB, DL, TII->get(LoongArch::B)).addImm(0x8);
+    BuildMI(LoopTailMBB, DL, TII->get(LoongArch::DBAR)).addImm(0x700);
   }
 
   NextMBBI = MBB.end();

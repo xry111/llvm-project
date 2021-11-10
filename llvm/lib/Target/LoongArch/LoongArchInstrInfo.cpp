@@ -448,10 +448,7 @@ bool LoongArchInstrInfo::isBranchOffsetInRange(unsigned BranchOp,
 
 unsigned LoongArchInstrInfo::getInstSizeInBytes(const MachineInstr &MI) const {
   unsigned Opcode = MI.getOpcode();
-
-  const auto MF = MI.getMF();
-  const LoongArchSubtarget &ST = MF->getSubtarget<LoongArchSubtarget>();
-  unsigned LLSCFixup = ST.hasFixedLLSC() ? 0 : 4;
+  unsigned LLSCFixup = 8; // b 0x8; dbar 0x700
 
   switch (Opcode) {
   default:

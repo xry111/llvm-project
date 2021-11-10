@@ -36,13 +36,6 @@ def IsLA32 : Predicate<"!Subtarget->is64Bit()">,
                        AssemblerPredicate<(all_of (not Feature64Bit)),
                        "Loongson LA32 Base Instruction Set">;
 
-def FeatureFixedLLSC
-    : SubtargetFeature<"l", "HasFixedLLSC", "true",
-                       "LL/SC errata is fixed in hardware">;
-def HasFixedLLSC : Predicate<"Subtarget->hasStdExtD()">,
-                             AssemblerPredicate<(all_of FeatureFixedLLSC),
-                             "LL/SC errata is fixed in hardware">;
-
 defvar LA32 = DefaultMode;
 def LA64           : HwMode<"+64bit">;
 
