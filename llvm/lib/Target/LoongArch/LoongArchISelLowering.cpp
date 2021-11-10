@@ -51,30 +51,33 @@ LoongArchTargetLowering::LoongArchTargetLowering(const TargetMachine &TM,
   assert(ABI != LoongArchABI::ABI_Unknown &&
          "Improperly initialised target ABI");
 
-  if ((ABI == LoongArchABI::ABI_ILP32F || ABI == LoongArchABI::ABI_LP64) &&
+  if ((ABI == LoongArchABI::ABI_ILP32F ||
+       ABI == LoongArchABI::ABI_LP64F) &&
       !Subtarget.hasStdExtF()) {
     errs() << "Hard-float 'f' ABI can't be used for a target that "
               "doesn't support the F instruction set extension (ignoring "
               "target-abi)\n";
     ABI =
-        Subtarget.is64Bit() ? LoongArchABI::ABI_LP64 : LoongArchABI::ABI_ILP32;
+        Subtarget.is64Bit() ? LoongArchABI::ABI_LP64S : LoongArchABI::ABI_ILP32S;
   } else if ((ABI == LoongArchABI::ABI_ILP32D ||
-              ABI == LoongArchABI::ABI_LP64) &&
+              ABI == LoongArchABI::ABI_LP64D) &&
              !Subtarget.hasStdExtD()) {
     errs() << "Hard-float 'd' ABI can't be used for a target that "
               "doesn't support the D instruction set extension (ignoring "
               "target-abi)\n";
     ABI =
-        Subtarget.is64Bit() ? LoongArchABI::ABI_LP64 : LoongArchABI::ABI_ILP32;
+        Subtarget.is64Bit() ? LoongArchABI::ABI_LP64S : LoongArchABI::ABI_ILP32S;
   }
 
   switch (ABI) {
   default:
     report_fatal_error("Don't know how to lower this ABI");
-  case LoongArchABI::ABI_ILP32:
+  case LoongArchABI::ABI_ILP32S:
   case LoongArchABI::ABI_ILP32F:
   case LoongArchABI::ABI_ILP32D:
-  case LoongArchABI::ABI_LP64:
+  case LoongArchABI::ABI_LP64S:
+  case LoongArchABI::ABI_LP64F:
+  case LoongArchABI::ABI_LP64D:
     break;
   }
 
@@ -1501,13 +1504,15 @@ static bool CC_LoongArch(const DataLayout &DL, LoongArchABI::ABI ABI,
   switch (ABI) {
   default:
     llvm_unreachable("Unexpected ABI");
-  case LoongArchABI::ABI_ILP32:
+  case LoongArchABI::ABI_ILP32S:
+  case LoongArchABI::ABI_LP64S:
     break;
   case LoongArchABI::ABI_ILP32F:
+  case LoongArchABI::ABI_LP64F:
     UseGPRForF16_F32 = !IsFixed;
     break;
   case LoongArchABI::ABI_ILP32D:
-  case LoongArchABI::ABI_LP64:
+  case LoongArchABI::ABI_LP64D:
     UseGPRForF16_F32 = !IsFixed;
     UseGPRForF64 = !IsFixed;
     break;
@@ -2991,9 +2996,9 @@ Register LoongArchTargetLowering::getExceptionSelectorRegister(
 
 bool LoongArchTargetLowering::shouldExtendTypeInLibCall(EVT Type) const {
   // Return false to suppress the unnecessary extensions if the LibCall
-  // arguments or return value is f32 type for LP64 ABI.
+  // arguments or return value is f32 type for LP64S ABI.
   LoongArchABI::ABI ABI = Subtarget.getTargetABI();
-  if (ABI == LoongArchABI::ABI_LP64 && (Type == MVT::f32))
+  if (ABI == LoongArchABI::ABI_LP64S && (Type == MVT::f32))
     return false;
 
   return true;

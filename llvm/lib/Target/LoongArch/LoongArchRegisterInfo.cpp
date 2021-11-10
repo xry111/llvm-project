@@ -62,13 +62,15 @@ LoongArchRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   switch (Subtarget.getTargetABI()) {
   default:
     llvm_unreachable("Unrecognized ABI");
-  case LoongArchABI::ABI_ILP32:
-    return CSR_ILP32_SaveList;
+  case LoongArchABI::ABI_ILP32S:
+  case LoongArchABI::ABI_LP64S:
+    return CSR_ILP32S_LP64S_SaveList;
   case LoongArchABI::ABI_ILP32F:
-    return CSR_ILP32F_SaveList;
+  case LoongArchABI::ABI_LP64F:
+    return CSR_ILP32F_LP64F_SaveList;
   case LoongArchABI::ABI_ILP32D:
-  case LoongArchABI::ABI_LP64:
-    return CSR_ILP32D_LP64_SaveList;
+  case LoongArchABI::ABI_LP64D:
+    return CSR_ILP32D_LP64D_SaveList;
   }
 }
 
@@ -193,12 +195,14 @@ LoongArchRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
   switch (Subtarget.getTargetABI()) {
   default:
     llvm_unreachable("Unrecognized ABI");
-  case LoongArchABI::ABI_ILP32:
-    return CSR_ILP32_RegMask;
+  case LoongArchABI::ABI_ILP32S:
+  case LoongArchABI::ABI_LP64S:
+    return CSR_ILP32S_LP64S_RegMask;
   case LoongArchABI::ABI_ILP32F:
-    return CSR_ILP32F_RegMask;
+  case LoongArchABI::ABI_LP64F:
+    return CSR_ILP32F_LP64F_RegMask;
   case LoongArchABI::ABI_ILP32D:
-  case LoongArchABI::ABI_LP64:
-    return CSR_ILP32D_LP64_RegMask;
+  case LoongArchABI::ABI_LP64D:
+    return CSR_ILP32D_LP64D_RegMask;
   }
 }

@@ -221,10 +221,12 @@ struct SysReg {
 namespace LoongArchABI {
 
 enum ABI {
-  ABI_ILP32,
+  ABI_ILP32S,
   ABI_ILP32F,
   ABI_ILP32D,
-  ABI_LP64,
+  ABI_LP64S,
+  ABI_LP64F,
+  ABI_LP64D,
   ABI_Unknown
 };
 

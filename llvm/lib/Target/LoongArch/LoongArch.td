@@ -27,11 +27,8 @@ def HasStdExtD : Predicate<"Subtarget->hasStdExtD()">,
                            AssemblerPredicate<(all_of FeatureStdExtD),
                            "'D' (Double-Precision Floating-Point)">;
 
-// Though the LA spec says "you can implement LA64 without hardware FP",
-// the current LP64 ABI requires 32-bit and 64-bit hardware FP.
 def Feature64Bit
-    : SubtargetFeature<"64bit", "HasLA64", "true", "Implements LA64",
-                       [FeatureStdExtD]>;
+    : SubtargetFeature<"64bit", "HasLA64", "true", "Implements LA64", []>;
 def IsLA64 : Predicate<"Subtarget->is64Bit()">,
                        AssemblerPredicate<(all_of Feature64Bit),
                        "Loongson LA64 Base Instruction Set">;
@@ -74,8 +71,11 @@ include "LoongArchRegisterBanks.td"
 // RISC-V processors supported.
 //===----------------------------------------------------------------------===//
 
-def : ProcessorModel<"loongarch32", NoSchedModel, []>;
-def : ProcessorModel<"loongarch64", NoSchedModel, [Feature64Bit]>;
+def : ProcessorModel<"loongarch32", NoSchedModel, [FeatureStdExtD]>;
+def : ProcessorModel<"loongarch64", NoSchedModel,
+                     [Feature64Bit, FeatureStdExtD]>;
+
+// TODO: add models with soft or single float here
 
 //===----------------------------------------------------------------------===//
 // Define the RISC-V target.

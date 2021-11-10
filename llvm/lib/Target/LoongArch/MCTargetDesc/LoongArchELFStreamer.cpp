@@ -37,16 +37,22 @@ LoongArchTargetELFStreamer::LoongArchTargetELFStreamer(
   unsigned EFlags = MCA.getELFHeaderEFlags();
 
   switch (ABI) {
-  case LoongArchABI::ABI_ILP32:
-    EFlags = 0x1;
-    break;
-  case LoongArchABI::ABI_LP64:
+  case LoongArchABI::ABI_LP64D:
     EFlags = 0x3;
     break;
-  case LoongArchABI::ABI_ILP32F:
-    EFlags = 0x4;
+  case LoongArchABI::ABI_LP64F:
+    EFlags = 0x2;
+    break;
+  case LoongArchABI::ABI_LP64S:
+    EFlags = 0x1;
     break;
   case LoongArchABI::ABI_ILP32D:
+    EFlags = 0x7;
+    break;
+  case LoongArchABI::ABI_ILP32F:
+    EFlags = 0x6;
+    break;
+  case LoongArchABI::ABI_ILP32S:
     EFlags = 0x5;
     break;
   case LoongArchABI::ABI_Unknown:

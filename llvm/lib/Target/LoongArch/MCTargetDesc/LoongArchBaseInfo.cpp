@@ -45,21 +45,24 @@ ABI computeTargetABI(const Triple &TT, FeatureBitset FeatureBits,
   if (TargetABI != ABI_Unknown)
     return TargetABI;
 
-  // For now, default to the ilp32/ilp32e/lp64 ABI if no explicit ABI is given
-  // or an invalid/unrecognised string is given. In the future, it might be
-  // worth changing this to default to ilp32f/lp64f and ilp32d/lp64d when
-  // hardware support for floating point is present.
-  if (IsLA64)
-    return ABI_LP64;
-  return ABI_ILP32;
+  // Guess ABI based on GR len and FPU features.
+  if (FeatureBits[LoongArch::FeatureStdExtD])
+    return IsLA64 ? ABI_LP64D : ABI_ILP32D;
+
+  if (FeatureBits[LoongArch::FeatureStdExtF])
+    return IsLA64 ? ABI_LP64F : ABI_ILP32F;
+
+  return IsLA64 ? ABI_LP64S : ABI_ILP32S;
 }
 
 ABI getTargetABI(StringRef ABIName) {
   auto TargetABI = StringSwitch<ABI>(ABIName)
-                       .Case("ilp32", ABI_ILP32)
+                       .Case("ilp32s", ABI_ILP32S)
                        .Case("ilp32f", ABI_ILP32F)
                        .Case("ilp32d", ABI_ILP32D)
-                       .Case("lp64", ABI_LP64)
+                       .Case("lp64s", ABI_LP64S)
+                       .Case("lp64f", ABI_LP64F)
+                       .Case("lp64d", ABI_LP64D)
                        .Default(ABI_Unknown);
   return TargetABI;
 }

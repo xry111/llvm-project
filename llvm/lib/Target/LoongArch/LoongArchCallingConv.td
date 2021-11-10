@@ -13,15 +13,15 @@
 // The RISC-V calling convention is handled with custom code in
 // LoongArchISelLowering.cpp (CC_LoongArch).
 
-def CSR_ILP32
+def CSR_ILP32S_LP64S
     : CalleeSavedRegs<(add R1, R2, R21, (sequence "R%u", 22, 31))>;
 
-def CSR_ILP32F
-    : CalleeSavedRegs<(add CSR_ILP32,
+def CSR_ILP32F_LP64F
+    : CalleeSavedRegs<(add CSR_ILP32S_LP64S,
                        (sequence "F%u_F", 24, 31))>;
 
-def CSR_ILP32D_LP64
-    : CalleeSavedRegs<(add CSR_ILP32F,
+def CSR_ILP32D_LP64D
+    : CalleeSavedRegs<(add CSR_ILP32F_LP64F,
                        (sequence "F%u_D", 24, 31))>;
 
 // Needed for implementation of LoongArchRegisterInfo::getNoPreservedMask()
