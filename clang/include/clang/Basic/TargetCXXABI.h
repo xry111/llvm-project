@@ -88,6 +88,12 @@ public:
     ///   - representation of member function pointers adjusted as in ARM.
     GenericMIPS,
 
+    /// The generic LoongArch ABI is a modified version of the Itanium ABI.
+    ///
+    /// At the moment, only change from the generic ABI in this case is:
+    ///   - representation of member function pointers adjusted as in ARM.
+    GenericLoongArch,
+
     /// The WebAssembly ABI is a modified version of the Itanium ABI.
     ///
     /// The changes from the Itanium ABI are:
@@ -154,6 +160,7 @@ public:
     case iOS64:
     case WatchOS:
     case GenericMIPS:
+    case GenericLoongArch:
     case WebAssembly:
     case XL:
       return true;
@@ -175,6 +182,7 @@ public:
     case iOS64:
     case WatchOS:
     case GenericMIPS:
+    case GenericLoongArch:
     case WebAssembly:
     case XL:
       return false;
@@ -203,6 +211,7 @@ public:
     case GenericARM:
     case GenericAArch64:
     case GenericMIPS:
+    case GenericLoongArch:
       // TODO: ARM-style pointers to member functions put the discriminator in
       //       the this adjustment, so they don't require functions to have any
       //       special alignment and could therefore also return false.
@@ -288,6 +297,7 @@ public:
     case iOS:   // old iOS compilers did not follow this rule
     case Microsoft:
     case GenericMIPS:
+    case GenericLoongArch:
     case XL:
       return true;
     }
@@ -326,6 +336,7 @@ public:
     case GenericARM:
     case iOS:
     case GenericMIPS:
+    case GenericLoongArch:
     case XL:
       return UseTailPaddingUnlessPOD03;
 

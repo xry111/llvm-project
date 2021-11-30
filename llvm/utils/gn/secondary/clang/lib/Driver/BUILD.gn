@@ -47,6 +47,7 @@ static_library("Driver") {
     "ToolChains/Ananas.cpp",
     "ToolChains/Arch/AArch64.cpp",
     "ToolChains/Arch/ARM.cpp",
+    "ToolChains/Arch/LoongArch.cpp",
     "ToolChains/Arch/Mips.cpp",
     "ToolChains/Arch/PPC.cpp",
     "ToolChains/Arch/RISCV.cpp",

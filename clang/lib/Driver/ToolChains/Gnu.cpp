@@ -8,6 +8,7 @@
 
 #include "Gnu.h"
 #include "Arch/ARM.h"
+#include "Arch/LoongArch.h"
 #include "Arch/Mips.h"
 #include "Arch/PPC.h"
 #include "Arch/RISCV.h"
@@ -269,6 +270,10 @@ static const char *getLDMOption(const llvm::Triple &T, const ArgList &Args) {
   case llvm::Triple::armeb:
   case llvm::Triple::thumbeb:
     return isArmBigEndian(T, Args) ? "armelfb_linux_eabi" : "armelf_linux_eabi";
+  case llvm::Triple::loongarch32:
+    return "elf32loongarch";
+  case llvm::Triple::loongarch64:
+    return "elf64loongarch";
   case llvm::Triple::ppc:
     return "elf32ppclinux";
   case llvm::Triple::ppc64:
@@ -821,6 +826,49 @@ void tools::gnutools::Assembler::ConstructJob(Compilation &C,
     Args.AddLastArg(CmdArgs, options::OPT_march_EQ);
     normalizeCPUNamesForAssembler(Args, CmdArgs);
 
+    break;
+  }
+  case llvm::Triple::loongarch32:
+  case llvm::Triple::loongarch64: {
+    StringRef CPUName;
+    StringRef ABIName;
+    loongarch::getLoongArchCPUAndABI(Args, getToolChain().getTriple(), CPUName, ABIName);
+    ABIName = loongarch::getGnuCompatibleLoongArchABIName(ABIName);
+
+    //FIXME: Currently gnu as doesn't support -march
+    //CmdArgs.push_back("-march=loongarch");
+    //CmdArgs.push_back(CPUName.data());
+
+    //FIXME: modify loongarch::getGnuCompatibleLoongArchABIName()
+    CmdArgs.push_back("-mabi=lp64");
+    //CmdArgs.push_back(ABIName.data());
+
+    // -mno-shared should be emitted unless -fpic, -fpie, -fPIC, -fPIE,
+    // or -mshared (not implemented) is in effect.
+    if (RelocationModel == llvm::Reloc::Static)
+      CmdArgs.push_back("-mno-shared");
+
+    // LLVM doesn't support -mplt yet and acts as if it is always given.
+    // However, -mplt has no effect with the LP64 ABI.
+    if (ABIName != "64")
+      CmdArgs.push_back("-call_nonpic");
+
+    break;
+
+    // Add the last -mfp32/-mfp64.
+    if (Arg *A = Args.getLastArg(options::OPT_mfp32,
+                                 options::OPT_mfp64)) {
+      A->claim();
+      A->render(Args, CmdArgs);
+    }
+
+    Args.AddLastArg(CmdArgs, options::OPT_mhard_float,
+                    options::OPT_msoft_float);
+
+    Args.AddLastArg(CmdArgs, options::OPT_mdouble_float,
+                    options::OPT_msingle_float);
+
+    AddAssemblerKPIC(getToolChain(), Args, CmdArgs);
     break;
   }
   case llvm::Triple::mips:
@@ -2088,6 +2136,11 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
       "i686-linux-android",   "i386-gnu",              "i486-gnu",
       "i586-gnu",             "i686-gnu"};
 
+  static const char *const LoongArch64LibDirs[] = {"/lib64", "/lib"};
+  static const char *const LoongArch64Triples[] = {
+      "loongarch64-linux-gnu",         "loongarch64-linux-gnuabi64",
+      "loongarch64-unknown-linux-gnu", "loongarch64-unknown-linux-gnuabi64"};
+
   static const char *const MIPSLibDirs[] = {"/lib"};
   static const char *const MIPSTriples[] = {
       "mips-linux-gnu", "mips-mti-linux", "mips-mti-linux-gnu",
@@ -2320,6 +2373,10 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
       BiarchLibDirs.append(begin(X86_64LibDirs), end(X86_64LibDirs));
       BiarchTripleAliases.append(begin(X86_64Triples), end(X86_64Triples));
     }
+    break;
+  case llvm::Triple::loongarch64:
+    LibDirs.append(begin(LoongArch64LibDirs), end(LoongArch64LibDirs));
+    TripleAliases.append(begin(LoongArch64Triples), end(LoongArch64Triples));
     break;
   case llvm::Triple::mips:
     LibDirs.append(begin(MIPSLibDirs), end(MIPSLibDirs));
@@ -2669,6 +2726,7 @@ bool Generic_GCC::isPICDefault() const {
   switch (getArch()) {
   case llvm::Triple::x86_64:
     return getTriple().isOSWindows();
+  case llvm::Triple::loongarch64:
   case llvm::Triple::mips64:
   case llvm::Triple::mips64el:
     return true;
@@ -2707,6 +2765,8 @@ bool Generic_GCC::IsIntegratedAssemblerDefault() const {
   case llvm::Triple::mips64:
   case llvm::Triple::mips64el:
   case llvm::Triple::msp430:
+  case llvm::Triple::loongarch32:
+  case llvm::Triple::loongarch64:
     return true;
   case llvm::Triple::sparc:
   case llvm::Triple::sparcel:

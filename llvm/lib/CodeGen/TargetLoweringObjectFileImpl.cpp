@@ -190,6 +190,16 @@ void TargetLoweringObjectFileELF::Initialize(MCContext &Ctx,
     PersonalityEncoding = dwarf::DW_EH_PE_absptr;
     TTypeEncoding = dwarf::DW_EH_PE_absptr;
     break;
+  case Triple::loongarch32:
+  case Triple::loongarch64:
+    PersonalityEncoding = dwarf::DW_EH_PE_indirect;
+
+    // Note: gas does not support pc-relative LSDA references.
+    LSDAEncoding = dwarf::DW_EH_PE_absptr;
+
+    TTypeEncoding = dwarf::DW_EH_PE_indirect | dwarf::DW_EH_PE_pcrel |
+                    dwarf::DW_EH_PE_sdata4;
+    break;
   case Triple::mips:
   case Triple::mipsel:
   case Triple::mips64:

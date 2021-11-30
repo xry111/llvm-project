@@ -7561,6 +7561,540 @@ void MSP430TargetCodeGenInfo::setTargetAttributes(
 }
 
 //===----------------------------------------------------------------------===//
+// LoongArch ABI Implementation
+//===----------------------------------------------------------------------===//
+
+namespace {
+class LoongArchABIInfo : public DefaultABIInfo {
+private:
+  // Size of the integer ('r') registers in bits.
+  unsigned GRLen;
+  // Size of the floating point ('f') registers in bits. Note that the target
+  // ISA might have a wider FRLen than the selected ABI.
+  unsigned FRLen;
+  static const int NumArgGPRs = 8;
+  static const int NumArgFPRs = 8;
+  bool detectFPCCEligibleStructHelper(QualType Ty, CharUnits CurOff,
+                                      llvm::Type *&Field1Ty,
+                                      CharUnits &Field1Off,
+                                      llvm::Type *&Field2Ty,
+                                      CharUnits &Field2Off) const;
+
+public:
+  LoongArchABIInfo(CodeGen::CodeGenTypes &CGT, unsigned GRLen, unsigned FRLen)
+      : DefaultABIInfo(CGT), GRLen(GRLen), FRLen(FRLen) {}
+
+  // DefaultABIInfo's classifyReturnType and classifyArgumentType are
+  // non-virtual, but computeInfo is virtual, so we overload it.
+  void computeInfo(CGFunctionInfo &FI) const override;
+
+  ABIArgInfo classifyArgumentType(QualType Ty, bool IsFixed, int &ArgGPRsLeft,
+                                  int &ArgFPRsLeft) const;
+  ABIArgInfo classifyReturnType(QualType RetTy) const;
+
+  uint64_t MinABIStackAlignInBytes = 8;
+  uint64_t StackAlignInBytes = 16;
+  llvm::Type* HandleAggregates(QualType Ty, uint64_t TySize) const;
+  llvm::Type* getPaddingType(uint64_t Align, uint64_t Offset) const;
+  void CoerceToIntArgs(uint64_t TySize,
+                       SmallVectorImpl<llvm::Type *> &ArgList) const;
+
+  Address EmitVAArg(CodeGenFunction &CGF, Address VAListAddr,
+                    QualType Ty) const override;
+
+  ABIArgInfo extendType(QualType Ty) const;
+
+  bool detectFPCCEligibleStruct(QualType Ty, llvm::Type *&Field1Ty,
+                                CharUnits &Field1Off, llvm::Type *&Field2Ty,
+                                CharUnits &Field2Off, int &NeededArgGPRs,
+                                int &NeededArgFPRs) const;
+  ABIArgInfo coerceAndExpandFPCCEligibleStruct(llvm::Type *Field1Ty,
+                                               CharUnits Field1Off,
+                                               llvm::Type *Field2Ty,
+                                               CharUnits Field2Off) const;
+};
+} // end anonymous namespace
+
+void LoongArchABIInfo::computeInfo(CGFunctionInfo &FI) const {
+  QualType RetTy = FI.getReturnType();
+  if (!getCXXABI().classifyReturnType(FI))
+    FI.getReturnInfo() = classifyReturnType(RetTy);
+
+  // IsRetIndirect is true if classifyArgumentType indicated the value should
+  // be passed indirect or if the type size is greater than 2*grlen.
+  bool IsRetIndirect = FI.getReturnInfo().getKind() == ABIArgInfo::Indirect ||
+                       getContext().getTypeSize(RetTy) > (2 * GRLen);
+
+  // We must track the number of GPRs used in order to conform to the LoongArch
+  // ABI, as integer scalars passed in registers should have signext/zeroext
+  // when promoted, but are anyext if passed on the stack. As GPR usage is
+  // different for variadic arguments, we must also track whether we are
+  // examining a vararg or not.
+  int ArgGPRsLeft = IsRetIndirect ? NumArgGPRs - 1 : NumArgGPRs;
+  int ArgFPRsLeft = FRLen ? NumArgFPRs : 0;
+  int NumFixedArgs = FI.getNumRequiredArgs();
+
+  int ArgNum = 0;
+  for (auto &ArgInfo : FI.arguments()) {
+    bool IsFixed = ArgNum < NumFixedArgs;
+    ArgInfo.info =
+        classifyArgumentType(ArgInfo.type, IsFixed, ArgGPRsLeft, ArgFPRsLeft);
+    ArgNum++;
+  }
+}
+
+// Returns true if the struct is a potential candidate for the floating point
+// calling convention. If this function returns true, the caller is
+// responsible for checking that if there is only a single field then that
+// field is a float.
+bool LoongArchABIInfo::detectFPCCEligibleStructHelper(QualType Ty, CharUnits CurOff,
+                                                  llvm::Type *&Field1Ty,
+                                                  CharUnits &Field1Off,
+                                                  llvm::Type *&Field2Ty,
+                                                  CharUnits &Field2Off) const {
+  bool IsInt = Ty->isIntegralOrEnumerationType();
+  bool IsFloat = Ty->isRealFloatingType();
+
+  if (IsInt || IsFloat) {
+    uint64_t Size = getContext().getTypeSize(Ty);
+    if (IsInt && Size > GRLen)
+      return false;
+    // Can't be eligible if larger than the FP registers. Half precision isn't
+    // currently supported on LoongArch and the ABI hasn't been confirmed, so
+    // default to the integer ABI in that case.
+    if (IsFloat && (Size > FRLen || Size < 32))
+      return false;
+    // Can't be eligible if an integer type was already found (int+int pairs
+    // are not eligible).
+    if (IsInt && Field1Ty && Field1Ty->isIntegerTy())
+      return false;
+    if (!Field1Ty) {
+      Field1Ty = CGT.ConvertType(Ty);
+      Field1Off = CurOff;
+      return true;
+    }
+    if (!Field2Ty) {
+      Field2Ty = CGT.ConvertType(Ty);
+      Field2Off = CurOff;
+      return true;
+    }
+    return false;
+  }
+
+  if (auto CTy = Ty->getAs<ComplexType>()) {
+    if (Field1Ty)
+      return false;
+    QualType EltTy = CTy->getElementType();
+    if (getContext().getTypeSize(EltTy) > FRLen)
+      return false;
+    Field1Ty = CGT.ConvertType(EltTy);
+    Field1Off = CurOff;
+    assert(CurOff.isZero() && "Unexpected offset for first field");
+    Field2Ty = Field1Ty;
+    Field2Off = Field1Off + getContext().getTypeSizeInChars(EltTy);
+    return true;
+  }
+
+  if (const ConstantArrayType *ATy = getContext().getAsConstantArrayType(Ty)) {
+    uint64_t ArraySize = ATy->getSize().getZExtValue();
+    QualType EltTy = ATy->getElementType();
+    CharUnits EltSize = getContext().getTypeSizeInChars(EltTy);
+    for (uint64_t i = 0; i < ArraySize; ++i) {
+      bool Ret = detectFPCCEligibleStructHelper(EltTy, CurOff, Field1Ty,
+                                                Field1Off, Field2Ty, Field2Off);
+      if (!Ret)
+        return false;
+      CurOff += EltSize;
+    }
+    return true;
+  }
+
+  if (const auto *RTy = Ty->getAs<RecordType>()) {
+    // Structures with either a non-trivial destructor or a non-trivial
+    // copy constructor are not eligible for the FP calling convention.
+    if (getRecordArgABI(Ty, CGT.getCXXABI()))
+      return false;
+    if (isEmptyRecord(getContext(), Ty, true))
+      return true;
+    const RecordDecl *RD = RTy->getDecl();
+    // Unions aren't eligible unless they're empty (which is caught above).
+    if (RD->isUnion())
+      return false;
+    int ZeroWidthBitFieldCount = 0;
+    for (const FieldDecl *FD : RD->fields()) {
+      const ASTRecordLayout &Layout = getContext().getASTRecordLayout(RD);
+      uint64_t FieldOffInBits = Layout.getFieldOffset(FD->getFieldIndex());
+      QualType QTy = FD->getType();
+      if (FD->isBitField()) {
+        unsigned BitWidth = FD->getBitWidthValue(getContext());
+        // Allow a bitfield with a type greater than GRLen as long as the
+        // bitwidth is GRLen or less.
+        if (getContext().getTypeSize(QTy) > GRLen && BitWidth <= GRLen)
+          QTy = getContext().getIntTypeForBitwidth(GRLen, false);
+        if (BitWidth == 0) {
+          ZeroWidthBitFieldCount++;
+          continue;
+        }
+      }
+
+      bool Ret = detectFPCCEligibleStructHelper(
+          QTy, CurOff + getContext().toCharUnitsFromBits(FieldOffInBits),
+          Field1Ty, Field1Off, Field2Ty, Field2Off);
+      if (!Ret)
+        return false;
+
+      // As a quirk of the ABI, zero-width bitfields aren't ignored for fp+fp
+      // or int+fp structs, but are ignored for a struct with an fp field and
+      // any number of zero-width bitfields.
+      if (Field2Ty && ZeroWidthBitFieldCount > 0)
+        return false;
+    }
+    return Field1Ty != nullptr;
+  }
+
+  return false;
+}
+
+// Determine if a struct is eligible for passing according to the floating
+// point calling convention (i.e., when flattened it contains a single fp
+// value, fp+fp, or int+fp of appropriate size). If so, NeededArgFPRs and
+// NeededArgGPRs are incremented appropriately.
+bool LoongArchABIInfo::detectFPCCEligibleStruct(QualType Ty, llvm::Type *&Field1Ty,
+                                            CharUnits &Field1Off,
+                                            llvm::Type *&Field2Ty,
+                                            CharUnits &Field2Off,
+                                            int &NeededArgGPRs,
+                                            int &NeededArgFPRs) const {
+  Field1Ty = nullptr;
+  Field2Ty = nullptr;
+  NeededArgGPRs = 0;
+  NeededArgFPRs = 0;
+  bool IsCandidate = detectFPCCEligibleStructHelper(
+      Ty, CharUnits::Zero(), Field1Ty, Field1Off, Field2Ty, Field2Off);
+  // Not really a candidate if we have a single int but no float.
+  if (Field1Ty && !Field2Ty && !Field1Ty->isFloatingPointTy())
+    return IsCandidate = false;
+  if (!IsCandidate)
+    return false;
+  if (Field1Ty && Field1Ty->isFloatingPointTy())
+    NeededArgFPRs++;
+  else if (Field1Ty)
+    NeededArgGPRs++;
+  if (Field2Ty && Field2Ty->isFloatingPointTy())
+    NeededArgFPRs++;
+  else if (Field2Ty)
+    NeededArgGPRs++;
+  return IsCandidate;
+}
+
+// Call getCoerceAndExpand for the two-element flattened struct described by
+// Field1Ty, Field1Off, Field2Ty, Field2Off. This method will create an
+// appropriate coerceToType and unpaddedCoerceToType.
+ABIArgInfo LoongArchABIInfo::coerceAndExpandFPCCEligibleStruct(
+    llvm::Type *Field1Ty, CharUnits Field1Off, llvm::Type *Field2Ty,
+    CharUnits Field2Off) const {
+  SmallVector<llvm::Type *, 3> CoerceElts;
+  SmallVector<llvm::Type *, 2> UnpaddedCoerceElts;
+  if (!Field1Off.isZero())
+    CoerceElts.push_back(llvm::ArrayType::get(
+        llvm::Type::getInt8Ty(getVMContext()), Field1Off.getQuantity()));
+
+  CoerceElts.push_back(Field1Ty);
+  UnpaddedCoerceElts.push_back(Field1Ty);
+
+  if (!Field2Ty) {
+    return ABIArgInfo::getCoerceAndExpand(
+        llvm::StructType::get(getVMContext(), CoerceElts, !Field1Off.isZero()),
+        UnpaddedCoerceElts[0]);
+  }
+
+  CharUnits Field2Align =
+      CharUnits::fromQuantity(getDataLayout().getABITypeAlignment(Field2Ty));
+  CharUnits Field1Size =
+      CharUnits::fromQuantity(getDataLayout().getTypeStoreSize(Field1Ty));
+  CharUnits Field2OffNoPadNoPack = Field1Size.alignTo(Field2Align);
+
+  CharUnits Padding = CharUnits::Zero();
+  if (Field2Off > Field2OffNoPadNoPack)
+    Padding = Field2Off - Field2OffNoPadNoPack;
+  else if (Field2Off != Field2Align && Field2Off > Field1Size)
+    Padding = Field2Off - Field1Size;
+
+  bool IsPacked = !Field2Off.isMultipleOf(Field2Align);
+
+  if (!Padding.isZero())
+    CoerceElts.push_back(llvm::ArrayType::get(
+        llvm::Type::getInt8Ty(getVMContext()), Padding.getQuantity()));
+
+  CoerceElts.push_back(Field2Ty);
+  UnpaddedCoerceElts.push_back(Field2Ty);
+
+  auto CoerceToType =
+      llvm::StructType::get(getVMContext(), CoerceElts, IsPacked);
+  auto UnpaddedCoerceToType =
+      llvm::StructType::get(getVMContext(), UnpaddedCoerceElts, IsPacked);
+
+  return ABIArgInfo::getCoerceAndExpand(CoerceToType, UnpaddedCoerceToType);
+}
+
+void LoongArchABIInfo::CoerceToIntArgs(
+    uint64_t TySize, SmallVectorImpl<llvm::Type *> &ArgList) const {
+  llvm::IntegerType *IntTy =
+    llvm::IntegerType::get(getVMContext(), MinABIStackAlignInBytes * 8);
+
+  // Add (TySize / MinABIStackAlignInBytes) args of IntTy.
+  for (unsigned N = TySize / (MinABIStackAlignInBytes * 8); N; --N)
+    ArgList.push_back(IntTy);
+
+  // If necessary, add one more integer type to ArgList.
+  unsigned R = TySize % (MinABIStackAlignInBytes * 8);
+
+  if (R)
+    ArgList.push_back(llvm::IntegerType::get(getVMContext(), R));
+}
+
+llvm::Type*  LoongArchABIInfo::HandleAggregates(QualType Ty, uint64_t TySize) const {
+  SmallVector<llvm::Type*, 8> ArgList, IntArgList;
+
+  if (Ty->isComplexType())
+    return CGT.ConvertType(Ty);
+
+  const RecordType *RT = Ty->getAs<RecordType>();
+
+  // Unions/vectors are passed in integer registers.
+  if (!RT || !RT->isStructureOrClassType()) {
+    CoerceToIntArgs(TySize, ArgList);
+    return llvm::StructType::get(getVMContext(), ArgList);
+  }
+
+  const RecordDecl *RD = RT->getDecl();
+  const ASTRecordLayout &Layout = getContext().getASTRecordLayout(RD);
+  assert(!(TySize % 8) && "Size of structure must be multiple of 8.");
+
+  uint64_t LastOffset = 0;
+  unsigned idx = 0;
+  llvm::IntegerType *I64 = llvm::IntegerType::get(getVMContext(), 64);
+
+  // Iterate over fields in the struct/class and check if there are any aligned
+  // double fields.
+  for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
+       i != e; ++i, ++idx) {
+    const QualType Ty = i->getType();
+    const BuiltinType *BT = Ty->getAs<BuiltinType>();
+
+    if (!BT || BT->getKind() != BuiltinType::Double)
+      continue;
+
+    uint64_t Offset = Layout.getFieldOffset(idx);
+    if (Offset % 64) // Ignore doubles that are not aligned.
+      continue;
+
+    // Add ((Offset - LastOffset) / 64) args of type i64.
+    for (unsigned j = (Offset - LastOffset) / 64; j > 0; --j)
+      ArgList.push_back(I64);
+
+    // Add double type.
+    ArgList.push_back(llvm::Type::getDoubleTy(getVMContext()));
+    LastOffset = Offset + 64;
+  }
+
+  CoerceToIntArgs(TySize - LastOffset, IntArgList);
+  ArgList.append(IntArgList.begin(), IntArgList.end());
+
+  return llvm::StructType::get(getVMContext(), ArgList);
+}
+
+llvm::Type * LoongArchABIInfo::getPaddingType(uint64_t OrigOffset,
+                                        uint64_t Offset) const {
+  if (OrigOffset + MinABIStackAlignInBytes > Offset)
+    return nullptr;
+
+  return llvm::IntegerType::get(getVMContext(), (Offset - OrigOffset) * 8);
+}
+
+ABIArgInfo LoongArchABIInfo::classifyArgumentType(QualType Ty, bool IsFixed,
+                                              int &ArgGPRsLeft,
+                                              int &ArgFPRsLeft) const {
+  assert(ArgGPRsLeft <= NumArgGPRs && "Arg GPR tracking underflow");
+  Ty = useFirstFieldIfTransparentUnion(Ty);
+
+  // Structures with either a non-trivial destructor or a non-trivial
+  // copy constructor are always passed indirectly.
+  if (CGCXXABI::RecordArgABI RAA = getRecordArgABI(Ty, getCXXABI())) {
+    if (ArgGPRsLeft)
+      ArgGPRsLeft -= 1;
+    return getNaturalAlignIndirect(Ty, /*ByVal=*/RAA ==
+                                           CGCXXABI::RAA_DirectInMemory);
+  }
+
+  // Ignore empty structs/unions.
+  if (isEmptyRecord(getContext(), Ty, true))
+    return ABIArgInfo::getIgnore();
+
+  uint64_t Size = getContext().getTypeSize(Ty);
+
+  // Pass floating point values via FPRs if possible.
+  if (IsFixed && Ty->isFloatingType() && FRLen >= Size && ArgFPRsLeft) {
+    ArgFPRsLeft--;
+    return ABIArgInfo::getDirect();
+  }
+
+  // Complex types for the hard float ABI must be passed direct rather than
+  // using CoerceAndExpand.
+  if (IsFixed && Ty->isComplexType() && FRLen && ArgFPRsLeft >= 2) {
+    QualType EltTy = Ty->getAs<ComplexType>()->getElementType();
+    if (getContext().getTypeSize(EltTy) <= FRLen) {
+      ArgFPRsLeft -= 2;
+      return ABIArgInfo::getDirect();
+    }
+  }
+
+  if (IsFixed && FRLen && Ty->isStructureOrClassType()) {
+    llvm::Type *Field1Ty = nullptr;
+    llvm::Type *Field2Ty = nullptr;
+    CharUnits Field1Off = CharUnits::Zero();
+    CharUnits Field2Off = CharUnits::Zero();
+    int NeededArgGPRs;
+    int NeededArgFPRs;
+    bool IsCandidate =
+        detectFPCCEligibleStruct(Ty, Field1Ty, Field1Off, Field2Ty, Field2Off,
+                                 NeededArgGPRs, NeededArgFPRs);
+    if (IsCandidate && NeededArgGPRs <= ArgGPRsLeft &&
+        NeededArgFPRs <= ArgFPRsLeft) {
+      ArgGPRsLeft -= NeededArgGPRs;
+      ArgFPRsLeft -= NeededArgFPRs;
+      return coerceAndExpandFPCCEligibleStruct(Field1Ty, Field1Off, Field2Ty,
+                                               Field2Off);
+    }
+  } else if (Ty->isStructureOrClassType() && Size == 128 && isAggregateTypeForABI(Ty)) {
+    uint64_t Offset = 8;
+    uint64_t OrigOffset = Offset;
+    uint64_t TySize = getContext().getTypeSize(Ty);
+    uint64_t Align = getContext().getTypeAlign(Ty) / 8;
+
+    Align = std::min(std::max(Align, (uint64_t)MinABIStackAlignInBytes),
+                     (uint64_t)StackAlignInBytes);
+    unsigned CurrOffset = llvm::alignTo(Offset, Align);
+    Offset = CurrOffset + llvm::alignTo(TySize, Align * 8) / 8;
+
+    ABIArgInfo ArgInfo =
+        ABIArgInfo::getDirect(HandleAggregates(Ty, TySize), 0,
+                              getPaddingType(OrigOffset, CurrOffset));
+    ArgInfo.setInReg(true);
+    return ArgInfo;
+  }
+
+  uint64_t NeededAlign = getContext().getTypeAlign(Ty);
+  bool MustUseStack = false;
+  // Determine the number of GPRs needed to pass the current argument
+  // according to the ABI. 2*GRLen-aligned varargs are passed in "aligned"
+  // register pairs, so may consume 3 registers.
+  int NeededArgGPRs = 1;
+  if (!IsFixed && NeededAlign == 2 * GRLen)
+    NeededArgGPRs = 2 + (ArgGPRsLeft % 2);
+  else if (Size > GRLen && Size <= 2 * GRLen)
+    NeededArgGPRs = 2;
+
+  if (NeededArgGPRs > ArgGPRsLeft) {
+    MustUseStack = true;
+    NeededArgGPRs = ArgGPRsLeft;
+  }
+
+  ArgGPRsLeft -= NeededArgGPRs;
+
+  if (!isAggregateTypeForABI(Ty) && !Ty->isVectorType()) {
+    // Treat an enum type as its underlying type.
+    if (const EnumType *EnumTy = Ty->getAs<EnumType>())
+      Ty = EnumTy->getDecl()->getIntegerType();
+
+    // All integral types are promoted to GRLen width, unless passed on the
+    // stack.
+    if (Size < GRLen && Ty->isIntegralOrEnumerationType() && !MustUseStack) {
+      return extendType(Ty);
+    }
+
+    return ABIArgInfo::getDirect();
+  }
+
+  // Aggregates which are <= 2*GRLen will be passed in registers if possible,
+  // so coerce to integers.
+  if (Size <= 2 * GRLen) {
+    unsigned Alignment = getContext().getTypeAlign(Ty);
+
+    // Use a single GRLen int if possible, 2*GRLen if 2*GRLen alignment is
+    // required, and a 2-element GRLen array if only GRLen alignment is required.
+    if (Size <= GRLen) {
+      return ABIArgInfo::getDirect(
+          llvm::IntegerType::get(getVMContext(), GRLen));
+    } else if (Alignment == 2 * GRLen) {
+      return ABIArgInfo::getDirect(
+          llvm::IntegerType::get(getVMContext(), 2 * GRLen));
+    } else {
+      return ABIArgInfo::getDirect(llvm::ArrayType::get(
+          llvm::IntegerType::get(getVMContext(), GRLen), 2));
+    }
+  }
+  return getNaturalAlignIndirect(Ty, /*ByVal=*/false);
+}
+
+ABIArgInfo LoongArchABIInfo::classifyReturnType(QualType RetTy) const {
+  if (RetTy->isVoidType())
+    return ABIArgInfo::getIgnore();
+
+  int ArgGPRsLeft = 2;
+  int ArgFPRsLeft = FRLen ? 2 : 0;
+
+  // The rules for return and argument types are the same, so defer to
+  // classifyArgumentType.
+  return classifyArgumentType(RetTy, /*IsFixed=*/true, ArgGPRsLeft,
+                              ArgFPRsLeft);
+}
+
+Address LoongArchABIInfo::EmitVAArg(CodeGenFunction &CGF, Address VAListAddr,
+                                    QualType Ty) const {
+  CharUnits SlotSize = CharUnits::fromQuantity(GRLen / 8);
+
+  // Empty records are ignored for parameter passing purposes.
+  if (isEmptyRecord(getContext(), Ty, true)) {
+    Address Addr(CGF.Builder.CreateLoad(VAListAddr), SlotSize);
+    Addr = CGF.Builder.CreateElementBitCast(Addr, CGF.ConvertTypeForMem(Ty));
+    return Addr;
+  }
+
+  std::pair<CharUnits, CharUnits> SizeAndAlign =
+      getContext().getTypeInfoInChars(Ty);
+
+  // Arguments bigger than 2*Xlen bytes are passed indirectly.
+  bool IsIndirect = SizeAndAlign.first > 2 * SlotSize;
+
+  return emitVoidPtrVAArg(CGF, VAListAddr, Ty, IsIndirect, SizeAndAlign,
+                          SlotSize, /*AllowHigherAlign=*/true);
+}
+
+ABIArgInfo LoongArchABIInfo::extendType(QualType Ty) const {
+  int TySize = getContext().getTypeSize(Ty);
+  // LP64 ABI requires unsigned 32 bit integers to be sign extended.
+  if (GRLen == 64 && Ty->isUnsignedIntegerOrEnumerationType() && TySize == 32)
+    return ABIArgInfo::getSignExtend(Ty);
+  return ABIArgInfo::getExtend(Ty);
+}
+
+namespace {
+class LoongArchTargetCodeGenInfo : public TargetCodeGenInfo {
+public:
+  LoongArchTargetCodeGenInfo(CodeGen::CodeGenTypes &CGT, unsigned GRLen,
+                         unsigned FRLen)
+      : TargetCodeGenInfo(std::make_unique<LoongArchABIInfo>(
+                          CGT, GRLen, FRLen)) {}
+
+  void setTargetAttributes(const Decl *D, llvm::GlobalValue *GV,
+                           CodeGen::CodeGenModule &CGM) const override {
+    return;
+  }
+};
+} // namespace
+
+//===----------------------------------------------------------------------===//
 // MIPS ABI Implementation.  This works for both little-endian and
 // big-endian variants.
 //===----------------------------------------------------------------------===//
@@ -10904,6 +11438,9 @@ const TargetCodeGenInfo &CodeGenModule::getTargetCodeGenInfo() {
   case llvm::Triple::nvptx:
   case llvm::Triple::nvptx64:
     return SetCGInfo(new NVPTXTargetCodeGenInfo(Types));
+
+  case llvm::Triple::loongarch64:
+    return SetCGInfo(new LoongArchTargetCodeGenInfo(Types, 64, 64));
 
   case llvm::Triple::msp430:
     return SetCGInfo(new MSP430TargetCodeGenInfo(Types));

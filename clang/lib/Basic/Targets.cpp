@@ -22,6 +22,7 @@
 #include "Targets/Hexagon.h"
 #include "Targets/Lanai.h"
 #include "Targets/Le64.h"
+#include "Targets/LoongArch.h"
 #include "Targets/MSP430.h"
 #include "Targets/Mips.h"
 #include "Targets/NVPTX.h"
@@ -313,6 +314,25 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
 
   case llvm::Triple::le64:
     return new Le64TargetInfo(Triple, Opts);
+
+#if 0
+  //TODO: support it in future
+  case llvm::Triple::loongarch32:
+    switch (os) {
+    case llvm::Triple::Linux:
+      return new LinuxTargetInfo<LoongArchTargetInfo>(Triple, Opts);
+    default:
+      return new LoongArchTargetInfo(Triple, Opts);
+    }
+#endif
+
+  case llvm::Triple::loongarch64:
+    switch (os) {
+    case llvm::Triple::Linux:
+      return new LinuxTargetInfo<LoongArchTargetInfo>(Triple, Opts);
+    default:
+      return new LoongArchTargetInfo(Triple, Opts);
+    }
 
   case llvm::Triple::ppc:
     if (Triple.isOSDarwin())

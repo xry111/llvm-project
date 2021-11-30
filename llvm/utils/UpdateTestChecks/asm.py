@@ -63,6 +63,11 @@ ASM_FUNCTION_MSP430_RE = re.compile(
     r'^_?(?P<func>[^:]+):[ \t]*;+[ \t]*@(?P=func)\n[^:]*?'
     r'(?P<body>.*?)\n'
     r'(\$|\.L)func_end[0-9]+:\n',             # $func_end0:
+
+ASM_FUNCTION_LOONGARCH_RE = re.compile(
+    r'^_?(?P<func>[^:]+):[ \t]*#+[ \t]*@(?P=func)\n[^:]*?' # f: (name of func)
+    r'(?P<body>^##?[ \t]+[^:]+:.*?)\s*'                    # (body of the function)
+    r'.Lfunc_end[0-9]+:\n',                                # .Lfunc_end[0-9]:
     flags=(re.M | re.S))
 
 ASM_FUNCTION_PPC_RE = re.compile(
@@ -257,6 +262,16 @@ def scrub_asm_msp430(asm, args):
   asm = common.SCRUB_TRAILING_WHITESPACE_RE.sub(r'', asm)
   return asm
 
+def scrub_asm_loongarch(asm, args):
+  # Scrub runs of whitespace out of the assembly, but leave the leading
+  # whitespace in place.
+  asm = common.SCRUB_WHITESPACE_RE.sub(r' ', asm)
+  # Expand the tabs used for indentation.
+  asm = string.expandtabs(asm, 2)
+  # Strip trailing whitespace.
+  asm = common.SCRUB_TRAILING_WHITESPACE_RE.sub(r'', asm)
+  return asm
+
 def scrub_asm_riscv(asm, args):
   # Scrub runs of whitespace out of the assembly, but leave the leading
   # whitespace in place.
@@ -344,6 +359,7 @@ def build_function_body_dictionary_for_triple(args, raw_tool_output, triple, pre
       'msp430': (scrub_asm_msp430, ASM_FUNCTION_MSP430_RE),
       'ppc32': (scrub_asm_powerpc, ASM_FUNCTION_PPC_RE),
       'powerpc': (scrub_asm_powerpc, ASM_FUNCTION_PPC_RE),
+      'loongarch64': (scrub_asm_loongarch, ASM_FUNCTION_LOONGARCH_RE),
       'riscv32': (scrub_asm_riscv, ASM_FUNCTION_RISCV_RE),
       'riscv64': (scrub_asm_riscv, ASM_FUNCTION_RISCV_RE),
       'lanai': (scrub_asm_lanai, ASM_FUNCTION_LANAI_RE),

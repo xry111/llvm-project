@@ -1192,6 +1192,45 @@ StringRef sys::getHostCPUName() {
   StringRef Content = P ? P->getBuffer() : "";
   return detail::getHostCPUNameForS390x(Content);
 }
+#elif defined(__linux__) && defined(__loongarch__)
+// loongarch prid register
+// +----------------+----------------+----------------+----------------+
+// | Company Options| Company ID     | Processor ID   | Revision       |
+// +----------------+----------------+----------------+----------------+
+//  31            24 23            16 15             8 7              0
+
+#define PRID_OPT_MASK                  0xff000000
+#define PRID_COMP_MASK                 0xff0000
+#define PRID_COMP_LOONGSON             0x140000
+#define PRID_IMP_MASK                  0xff00
+
+#define PRID_IMP_LOONGSON_32  0x4200  /* Loongson 32bit */
+#define PRID_IMP_LOONGSON_64R 0x6100  /* Reduced Loongson 64bit */
+#define PRID_IMP_LOONGSON_64C 0x6300  /* Classic Loongson 64bit */
+#define PRID_IMP_LOONGSON_64G 0xc000  /* Generic Loongson 64bit */
+
+StringRef sys::getHostCPUName() {
+  // use prid to detect cpu name
+  unsigned CPUCFG_NUM = 0; // prid
+  unsigned prid;
+
+  __asm__("cpucfg %[prid], %[CPUCFG_NUM]\n\t"
+      :[prid]"=r"(prid)
+      :[CPUCFG_NUM]"r"(CPUCFG_NUM));
+
+  if ((prid & PRID_COMP_MASK) == PRID_COMP_LOONGSON) {// for Loongson
+    switch (prid & PRID_IMP_MASK) {
+      case PRID_IMP_LOONGSON_32: // not support
+        return "loongarch32";
+      case PRID_IMP_LOONGSON_64R:
+      case PRID_IMP_LOONGSON_64C:
+      case PRID_IMP_LOONGSON_64G:
+        return "la464";
+    }
+  }
+
+  return "generic";
+}
 #elif defined(__APPLE__) && defined(__aarch64__)
 StringRef sys::getHostCPUName() {
   return "cyclone";
@@ -1535,6 +1574,36 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
     Features["crc"] = true;
   if (IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE))
     Features["crypto"] = true;
+
+  return true;
+}
+#elif defined(__linux__) && defined(__loongarch__)
+bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
+  std::unique_ptr<llvm::MemoryBuffer> P = getProcCpuinfoContent();
+  if (!P)
+    return false;
+
+  SmallVector<StringRef, 32> Lines;
+  P->getBuffer().split(Lines, "\n");
+
+  SmallVector<StringRef, 32> CPUFeatures;
+
+  // Look for the CPU features.
+  for (unsigned I = 0, E = Lines.size(); I != E; ++I)
+    if (Lines[I].startswith("features")) {
+      Lines[I].split(CPUFeatures, ' ');
+      break;
+    }
+
+  for (unsigned I = 0, E = CPUFeatures.size(); I != E; ++I) {
+    StringRef LLVMFeatureStr = StringSwitch<StringRef>(CPUFeatures[I])
+                                   .Case("lsx", "lsx")
+                                   .Case("lasx", "lasx")
+                                   .Default("");
+
+    if (LLVMFeatureStr != "")
+      Features[LLVMFeatureStr] = true;
+  }
 
   return true;
 }

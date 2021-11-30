@@ -440,6 +440,10 @@ findSurvivorBackwards(const MachineRegisterInfo &MRI,
         InstrCountDown = InstrLimit;
         Pos = I;
       }
+      if (I->getFlag(MachineInstr::FrameSetup)) {
+        Pos = To;
+        break;
+      }
       if (I == MBB.begin())
         break;
     }

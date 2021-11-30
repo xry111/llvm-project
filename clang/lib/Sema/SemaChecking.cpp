@@ -1430,6 +1430,9 @@ bool Sema::CheckTSBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
     return CheckPPCBuiltinFunctionCall(TI, BuiltinID, TheCall);
   case llvm::Triple::amdgcn:
     return CheckAMDGCNBuiltinFunctionCall(BuiltinID, TheCall);
+  case llvm::Triple::loongarch32:
+  case llvm::Triple::loongarch64:
+    return CheckLoongArchBuiltinFunctionCall(TI, BuiltinID, TheCall);
   }
 }
 
@@ -3192,6 +3195,45 @@ bool Sema::CheckAMDGCNBuiltinFunctionCall(unsigned BuiltinID,
            << ArgExpr->getType();
 
   return false;
+}
+
+// CheckLoongArchBuiltinFunctionCall - Checks the constant value passed to the
+// intrinsic is correct.
+//
+// FIXME: The size tests here should instead be tablegen'd along with the
+//        definitions from include/clang/Basic/BuiltinsLoongArch.def.
+// FIXME: GCC is strict on signedness for some of these intrinsics, we should
+//        be too.
+bool Sema::CheckLoongArchBuiltinFunctionCall(const TargetInfo &TI,
+                                             unsigned BuiltinID,
+                                             CallExpr *TheCall) {
+  unsigned i = 0, l = 0, u = 0, m = 0;
+  switch (BuiltinID) {
+  default: return false;
+  // These intrinsics take an unsigned 5 bit immediate and a signed 12 bit immediate.
+  case LoongArch::BI__builtin_loongarch_cacop:
+  case LoongArch::BI__builtin_loongarch_dcacop:
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 31) ||
+           SemaBuiltinConstantArgRange(TheCall, 2, -2048, 2047);
+  // These intrinsics take an unsigned 14 bit immediate.
+  case LoongArch::BI__builtin_loongarch_csrrd:
+  case LoongArch::BI__builtin_loongarch_dcsrrd: i = 0; l = 0; u = 16383; break;
+  case LoongArch::BI__builtin_loongarch_csrwr:
+  case LoongArch::BI__builtin_loongarch_dcsrwr: i = 1; l = 0; u = 16383; break;
+  case LoongArch::BI__builtin_loongarch_csrxchg:
+  case LoongArch::BI__builtin_loongarch_dcsrxchg: i = 2; l = 0; u = 16383; break;
+  // These intrinsics take an unsigned 15 bit immediate.
+  case LoongArch::BI__builtin_loongarch_dbar:
+  case LoongArch::BI__builtin_loongarch_ibar:
+  case LoongArch::BI__builtin_loongarch_syscall:
+  case LoongArch::BI__builtin_loongarch_break: i = 0; l = 0; u = 32767; break;
+  }
+
+  if (!m)
+    return SemaBuiltinConstantArgRange(TheCall, i, l, u);
+
+  return SemaBuiltinConstantArgRange(TheCall, i, l, u) ||
+         SemaBuiltinConstantArgMultiple(TheCall, i, m);
 }
 
 bool Sema::CheckSystemZBuiltinFunctionCall(unsigned BuiltinID,

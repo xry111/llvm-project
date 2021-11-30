@@ -9,6 +9,7 @@
 #include "CommonArgs.h"
 #include "Arch/AArch64.h"
 #include "Arch/ARM.h"
+#include "Arch/LoongArch.h"
 #include "Arch/Mips.h"
 #include "Arch/PPC.h"
 #include "Arch/SystemZ.h"
@@ -295,6 +296,14 @@ std::string tools::getCPUName(const ArgList &Args, const llvm::Triple &T,
     if (const Arg *A = Args.getLastArg(options::OPT_mmcu_EQ))
       return A->getValue();
     return "";
+
+  case llvm::Triple::loongarch32:
+  case llvm::Triple::loongarch64: {
+    StringRef CPUName;
+    StringRef ABIName;
+    loongarch::getLoongArchCPUAndABI(Args, T, CPUName, ABIName);
+    return std::string(CPUName);
+  }
 
   case llvm::Triple::mips:
   case llvm::Triple::mipsel:
@@ -1123,6 +1132,18 @@ tools::ParsePICArgs(const ToolChain &ToolChain, const ArgList &Args) {
   // ROPI and RWPI are not compatible with PIC or PIE.
   if ((ROPI || RWPI) && (PIC || PIE))
     ToolChain.getDriver().Diag(diag::err_drv_ropi_rwpi_incompatible_with_pic);
+
+  if (Triple.isLoongArch()) {
+    StringRef CPUName;
+    StringRef ABIName;
+    loongarch::getLoongArchCPUAndABI(Args, Triple, CPUName, ABIName);
+    // When targeting the LP64 ABI, PIC is the default.
+    if (ABIName == "lp64")
+      PIC = true;
+    // Unlike other architectures, LoongArch, even with -fPIC/-mxgot/multigot,
+    // does not use PIC level 2 for historical reasons.
+    IsPICLevelTwo = false;
+  }
 
   if (Triple.isMIPS()) {
     StringRef CPUName;

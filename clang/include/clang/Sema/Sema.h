@@ -12141,6 +12141,9 @@ private:
   bool CheckBPFBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall);
   bool CheckHexagonBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall);
   bool CheckHexagonBuiltinArgument(unsigned BuiltinID, CallExpr *TheCall);
+  bool CheckLoongArchBuiltinFunctionCall(const TargetInfo &TI,
+                                         unsigned BuiltinID,
+                                         CallExpr *TheCall);
   bool CheckMipsBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
                                     CallExpr *TheCall);
   bool CheckMipsBuiltinCpu(const TargetInfo &TI, unsigned BuiltinID,

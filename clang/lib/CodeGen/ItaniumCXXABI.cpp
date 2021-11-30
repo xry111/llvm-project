@@ -563,6 +563,9 @@ CodeGen::CGCXXABI *CodeGen::CreateItaniumCXXABI(CodeGenModule &CGM) {
     return new ItaniumCXXABI(CGM, /*UseARMMethodPtrABI=*/true,
                              /*UseARMGuardVarABI=*/true);
 
+  case TargetCXXABI::GenericLoongArch:
+    return new ItaniumCXXABI(CGM, /*UseARMMethodPtrABI=*/true);
+
   case TargetCXXABI::GenericMIPS:
     return new ItaniumCXXABI(CGM, /*UseARMMethodPtrABI=*/true);
 

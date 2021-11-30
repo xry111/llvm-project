@@ -27,6 +27,7 @@ subdirectories =
  Hexagon
  Lanai
  MSP430
+ LoongArch
  Mips
  NVPTX
  PowerPC

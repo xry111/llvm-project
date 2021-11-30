@@ -1,0 +1,13 @@
+  add_llvm_component_library(LLVMLoongArchDesc
+  LoongArchABIInfo.cpp
+  LoongArchFPABIInfo.cpp
+  LoongArchAsmBackend.cpp
+  LoongArchELFObjectWriter.cpp
+  LoongArchELFStreamer.cpp
+  LoongArchInstPrinter.cpp
+  LoongArchMCAsmInfo.cpp
+  LoongArchMCCodeEmitter.cpp
+  LoongArchMCExpr.cpp
+  LoongArchMCTargetDesc.cpp
+  LoongArchTargetStreamer.cpp
+  )

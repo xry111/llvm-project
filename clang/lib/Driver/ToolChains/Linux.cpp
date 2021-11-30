@@ -8,6 +8,7 @@
 
 #include "Linux.h"
 #include "Arch/ARM.h"
+#include "Arch/LoongArch.h"
 #include "Arch/Mips.h"
 #include "Arch/PPC.h"
 #include "Arch/RISCV.h"
@@ -102,6 +103,18 @@ std::string Linux::getMultiarchTriple(const Driver &D,
     if (D.getVFS().exists(SysRoot + "/lib/aarch64_be-linux-gnu"))
       return "aarch64_be-linux-gnu";
     break;
+  case llvm::Triple::loongarch32: {
+    std::string MT = "loongarch32-linux-gnu";
+    if (D.getVFS().exists(SysRoot + "/lib/" + MT))
+      return MT;
+    break;
+  }
+  case llvm::Triple::loongarch64: {
+    std::string MT = "loongarch64-linux-gnu";
+    if (D.getVFS().exists(SysRoot + "/lib/" + MT))
+      return MT;
+    break;
+  }
   case llvm::Triple::mips: {
     std::string MT = IsMipsR6 ? "mipsisa32r6-linux-gnu" : "mips-linux-gnu";
     if (D.getVFS().exists(SysRoot + "/lib/" + MT))
@@ -472,6 +485,12 @@ std::string Linux::getDynamicLinker(const ArgList &Args) const {
     Loader = HF ? "ld-linux-armhf.so.3" : "ld-linux.so.3";
     break;
   }
+  case llvm::Triple::loongarch32:
+  case llvm::Triple::loongarch64: {
+    LibDir = "lib" + tools::loongarch::getLoongArchABILibSuffix(Args, Triple);
+    Loader = "ld.so.1";
+    break;
+  }
   case llvm::Triple::mips:
   case llvm::Triple::mipsel:
   case llvm::Triple::mips64:
@@ -652,6 +671,10 @@ void Linux::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
       "/usr/include/sparc64-linux-gnu"};
   const StringRef SYSTEMZMultiarchIncludeDirs[] = {
       "/usr/include/s390x-linux-gnu"};
+  const StringRef LoongArch32MultiarchIncludeDirs[] = {
+      "/usr/include/loongarch32-linux-gnu"};
+  const StringRef LoongArch64MultiarchIncludeDirs[] = {
+      "/usr/include/loongarch64-linux-gnu"};
   ArrayRef<StringRef> MultiarchIncludeDirs;
   switch (getTriple().getArch()) {
   case llvm::Triple::x86_64:
@@ -729,6 +752,12 @@ void Linux::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
     break;
   case llvm::Triple::systemz:
     MultiarchIncludeDirs = SYSTEMZMultiarchIncludeDirs;
+    break;
+  case llvm::Triple::loongarch64:
+    MultiarchIncludeDirs = LoongArch64MultiarchIncludeDirs;
+    break;
+  case llvm::Triple::loongarch32:
+    MultiarchIncludeDirs = LoongArch32MultiarchIncludeDirs;
     break;
   default:
     break;

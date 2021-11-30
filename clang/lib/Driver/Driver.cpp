@@ -542,6 +542,22 @@ static llvm::Triple computeTargetTriple(const Driver &D,
     Target.setVendorName("intel");
   }
 
+  // If target is LoongArch adjust the target triple
+  // accordingly to provided ABI name.
+  A = Args.getLastArg(options::OPT_mabi_EQ);
+  if (A && Target.isLoongArch()) {
+    StringRef ABIName = A->getValue();
+    if (ABIName == "lp32") {
+      Target = Target.get32BitArchVariant();
+      if (Target.getEnvironment() == llvm::Triple::GNUABI64)
+        Target.setEnvironment(llvm::Triple::GNU);
+    } else if (ABIName == "lp64") {
+      Target = Target.get64BitArchVariant();
+      if (Target.getEnvironment() == llvm::Triple::GNU)
+        Target.setEnvironment(llvm::Triple::GNUABI64);
+    }
+  }
+
   // If target is MIPS adjust the target triple
   // accordingly to provided ABI name.
   A = Args.getLastArg(options::OPT_mabi_EQ);

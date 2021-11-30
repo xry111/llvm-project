@@ -124,6 +124,16 @@ namespace clang {
   enum { LastTIBuiltin = clang::Builtin::FirstTSBuiltin - 1, LastTSBuiltin };
   }
 
+  /// LoongArch builtins
+  namespace LoongArch {
+  enum {
+    LastTIBuiltin = clang::Builtin::FirstTSBuiltin-1,
+#define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+#include "clang/Basic/BuiltinsLoongArch.def"
+    LastTSBuiltin
+  };
+  } // namespace LoongArch
+
   /// Flags to identify the types for overloaded Neon builtins.
   ///
   /// These must be kept in sync with the flags in utils/TableGen/NeonEmitter.h.
@@ -326,7 +336,7 @@ namespace clang {
        NVPTX::LastTSBuiltin, AMDGPU::LastTSBuiltin, X86::LastTSBuiltin,
        Hexagon::LastTSBuiltin, Mips::LastTSBuiltin, XCore::LastTSBuiltin,
        Le64::LastTSBuiltin, SystemZ::LastTSBuiltin,
-       WebAssembly::LastTSBuiltin});
+       WebAssembly::LastTSBuiltin, LoongArch::LastTSBuiltin});
 
 } // end namespace clang.
 
