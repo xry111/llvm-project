@@ -1,0 +1,13 @@
+# RUN: llvm-mc %s -triple=loongarch64-unknown-linux-gnu -show-encoding | FileCheck %s
+beqz           $r9, 96                       # CHECK: beqz       $r9, 96                       # encoding: [0x20,0x61,0x00,0x40]
+bnez           $sp, 212                      # CHECK: bnez       $sp, 212                      # encoding: [0x60,0xd4,0x00,0x44]
+bceqz          $fcc6, 12                     # CHECK: bceqz      $fcc6, 12                     # encoding: [0xc0,0x0c,0x00,0x48]
+bcnez          $fcc6, 72                     # CHECK: bcnez      $fcc6, 72                     # encoding: [0xc0,0x49,0x00,0x48]
+b              248                           # CHECK: b          248                           # encoding: [0x00,0xf8,0x00,0x50]
+bl             236                           # CHECK: bl         236                           # encoding: [0x00,0xec,0x00,0x54]
+beq            $r10, $r7, 176                # CHECK: beq        $r10, $r7, 176                # encoding: [0x47,0xb1,0x00,0x58]
+bne            $r25, $ra, 136                # CHECK: bne        $r25, $ra, 136                # encoding: [0x21,0x8b,0x00,0x5c]
+blt            $r15, $r30, 168               # CHECK: blt        $r15, $r30, 168               # encoding: [0xfe,0xa9,0x00,0x60]
+bge            $r12, $r15, 148               # CHECK: bge        $r12, $r15, 148               # encoding: [0x8f,0x95,0x00,0x64]
+bltu           $r17, $r5, 4                  # CHECK: bltu       $r17, $r5, 4                  # encoding: [0x25,0x06,0x00,0x68]
+bgeu           $r6, $r23, 140                # CHECK: bgeu       $r6, $r23, 140                # encoding: [0xd7,0x8c,0x00,0x6c]

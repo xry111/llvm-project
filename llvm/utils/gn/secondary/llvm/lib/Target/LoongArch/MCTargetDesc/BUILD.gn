@@ -1,0 +1,74 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("LoongArchGenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../LoongArch.td"
+}
+
+tablegen("LoongArchGenInstrInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../LoongArch.td"
+}
+
+tablegen("LoongArchGenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../LoongArch.td"
+}
+
+tablegen("LoongArchGenRegisterInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../LoongArch.td"
+}
+
+tablegen("LoongArchGenSubtargetInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../LoongArch.td"
+}
+
+# This should contain tablegen targets generating .inc files included
+# by other targets. .inc files only used by .cpp files in this directory
+# should be in deps on the static_library instead.
+group("tablegen") {
+  visibility = [
+    ":MCTargetDesc",
+    "../TargetInfo",
+  ]
+  public_deps = [
+    ":LoongArchGenInstrInfo",
+    ":LoongArchGenRegisterInfo",
+    ":LoongArchGenSubtargetInfo",
+  ]
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMLoongArchDesc"
+  public_deps = [ ":tablegen" ]
+  deps = [
+    ":LoongArchGenAsmWriter",
+    ":LoongArchGenMCCodeEmitter",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/LoongArch/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "LoongArchABIFlagsSection.cpp",
+    "LoongArchABIInfo.cpp",
+    "LoongArchAsmBackend.cpp",
+    "LoongArchELFObjectWriter.cpp",
+    "LoongArchELFStreamer.cpp",
+    "LoongArchInstPrinter.cpp",
+    "LoongArchMCAsmInfo.cpp",
+    "LoongArchMCCodeEmitter.cpp",
+    "LoongArchMCExpr.cpp",
+    "LoongArchMCTargetDesc.cpp",
+    "LoongArchNaClELFStreamer.cpp",
+    "LoongArchOptionRecord.cpp",
+    "LoongArchTargetStreamer.cpp",
+  ]
+}

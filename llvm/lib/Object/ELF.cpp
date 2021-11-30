@@ -101,6 +101,13 @@ StringRef llvm::object::getELFRelocationTypeName(uint32_t Machine,
       break;
     }
     break;
+  case ELF::EM_LOONGARCH:
+    switch (Type) {
+#include "llvm/BinaryFormat/ELFRelocs/LoongArch.def"
+    default:
+      break;
+    }
+    break;
   case ELF::EM_PPC64:
     switch (Type) {
 #include "llvm/BinaryFormat/ELFRelocs/PowerPC64.def"

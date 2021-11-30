@@ -67,6 +67,16 @@ tablegen("IntrinsicsHexagon") {
   td_file = "Intrinsics.td"
 }
 
+tablegen("IntrinsicsLoongArch") {
+  visibility = [ ":public_tablegen" ]
+  output_name = "IntrinsicsLoongArch.h"
+  args = [
+    "-gen-intrinsic-enums",
+    "-intrinsic-prefix=loongarch",
+  ]
+  td_file = "Intrinsics.td"
+}
+
 tablegen("IntrinsicsMips") {
   visibility = [ ":public_tablegen" ]
   output_name = "IntrinsicsMips.h"
@@ -186,6 +196,7 @@ group("public_tablegen") {
     ":IntrinsicsARM",
     ":IntrinsicsBPF",
     ":IntrinsicsHexagon",
+    ":IntrinsicsLoongArch",
     ":IntrinsicsMips",
     ":IntrinsicsNVPTX",
     ":IntrinsicsPowerPC",
