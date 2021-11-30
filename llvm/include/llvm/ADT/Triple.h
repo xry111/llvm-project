@@ -59,6 +59,8 @@ public:
     csky,           // CSKY: csky
     hexagon,        // Hexagon: hexagon
     m68k,           // M68k: Motorola 680x0 family
+    loongarch32,    // LoongArch (32-bit): loongarch32
+    loongarch64,    // LoongArch (64-bit): loongarch64
     mips,           // MIPS: mips, mipsallegrex, mipsr6
     mipsel,         // MIPSEL: mipsel, mipsallegrexe, mipsr6el
     mips64,         // MIPS64: mips64, mips64r6, mipsn32, mipsn32r6
@@ -762,6 +764,21 @@ public:
   /// Tests whether the target is 32-bit PowerPC (little and big endian).
   bool isPPC32() const {
     return getArch() == Triple::ppc || getArch() == Triple::ppcle;
+  }
+
+  /// Tests whether the target is LoongArch 32-bit
+  bool isLoongArch32() const {
+    return getArch() == Triple::loongarch32;
+  }
+
+  /// Tests whether the target is LoongArch 64-bit.
+  bool isLoongArch64() const {
+    return getArch() == Triple::loongarch64;
+  }
+
+  /// Tests whether the target is LoongArch (32- or 64-bit).
+  bool isLoongArch() const {
+    return isLoongArch32() || isLoongArch64();
   }
 
   /// Tests whether the target is 64-bit PowerPC (little and big endian).

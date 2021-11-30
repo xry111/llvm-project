@@ -176,6 +176,8 @@ def m_x86_Features_Group : OptionGroup<"<x86 features group>">,
                            Group<m_Group>, Flags<[CoreOption]>, DocName<"X86">;
 def m_riscv_Features_Group : OptionGroup<"<riscv features group>">,
                              Group<m_Group>, DocName<"RISCV">;
+def m_loongarch_Features_Group : OptionGroup<"<loongarch features group>">,
+                                 Group<m_Group>, DocName<"LoongArch">;
 
 def m_libc_Group : OptionGroup<"<m libc group>">, Group<m_mips_Features_Group>,
                    Flags<[HelpHidden]>;
@@ -4069,6 +4071,14 @@ foreach i = {0-6} in
 foreach i = {0-7} in
   def ffixed_d#i : Flag<["-"], "ffixed-d"#i>, Group<m_m68k_Features_Group>,
     HelpText<"Reserve the d"#i#" register (M68k only)">;
+
+// LoongArch features flags
+def mfix_loongson3_llsc : Flag<["-"], "mfix-loongson3-llsc">,
+    Group<m_loongarch_Features_Group>,
+    HelpText<"Workaround loongson3 llsc erratum (LoongArch only)">;
+def mno_fix_loongson3_llsc : Flag<["-"], "mno-fix-loongson3-llsc">,
+    Group<m_loongarch_Features_Group>,
+    HelpText<"Don't Workaround loongson3 llsc erratum (LoongArch only)">;
 
 // X86 feature flags
 def mx87 : Flag<["-"], "mx87">, Group<m_x86_Features_Group>;

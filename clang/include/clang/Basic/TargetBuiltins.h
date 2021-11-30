@@ -134,6 +134,16 @@ namespace clang {
   };
   } // namespace RISCV
 
+  /// LoongArch builtins
+  namespace LoongArch {
+  enum {
+    LastTIBuiltin = clang::Builtin::FirstTSBuiltin-1,
+#define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+#include "clang/Basic/BuiltinsLoongArch.def"
+    LastTSBuiltin
+  };
+  } // namespace LoongArch
+
   /// Flags to identify the types for overloaded Neon builtins.
   ///
   /// These must be kept in sync with the flags in utils/TableGen/NeonEmitter.h.
@@ -325,8 +335,8 @@ namespace clang {
        PPC::LastTSBuiltin, NVPTX::LastTSBuiltin, AMDGPU::LastTSBuiltin,
        X86::LastTSBuiltin, VE::LastTSBuiltin, RISCV::LastTSBuiltin,
        Hexagon::LastTSBuiltin, Mips::LastTSBuiltin, XCore::LastTSBuiltin,
-       SystemZ::LastTSBuiltin, WebAssembly::LastTSBuiltin});
-
+       SystemZ::LastTSBuiltin, WebAssembly::LastTSBuiltin,
+       LoongArch::LastTSBuiltin});
 } // end namespace clang.
 
 #endif

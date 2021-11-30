@@ -320,6 +320,7 @@ enum {
   EM_BPF = 247,           // Linux kernel bpf virtual machine
   EM_VE = 251,            // NEC SX-Aurora VE
   EM_CSKY = 252,          // C-SKY 32-bit processor
+  EM_LOONGARCH = 258,     // LoongArch processor
 };
 
 // Object file classes.
@@ -658,6 +659,22 @@ enum : unsigned {
 // ELF Relocation types for RISC-V
 enum {
 #include "ELFRelocs/RISCV.def"
+};
+
+// LoongArch Specific e_flags
+enum : unsigned {
+  // FIXME: Change these when all ABIs definition were finalized.
+  // See current definitions:
+  // https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html#_e_flags_identifies_abi_type_and_version
+  EF_LARCH_ABI = 0x0003,
+  EF_LARCH_ABI_LP32 = 0x0001,
+  EF_LARCH_ABI_XLP32 = 0x0002,
+  EF_LARCH_ABI_LP64 = 0x0003,
+};
+
+// ELF Relocation types for LoongArch
+enum {
+#include "ELFRelocs/LoongArch.def"
 };
 
 // ELF Relocation types for S390/zSeries

@@ -8,6 +8,7 @@
 
 #include "Linux.h"
 #include "Arch/ARM.h"
+#include "Arch/LoongArch.h"
 #include "Arch/Mips.h"
 #include "Arch/PPC.h"
 #include "Arch/RISCV.h"
@@ -85,6 +86,19 @@ std::string Linux::getMultiarchTriple(const Driver &D,
   case llvm::Triple::aarch64_be:
     return "aarch64_be-linux-gnu";
 
+  case llvm::Triple::loongarch32: {
+    std::string MT = "loongarch32-linux-gnu";
+    if (D.getVFS().exists(SysRoot + "/lib/" + MT))
+      return MT;
+    break;
+  }
+  case llvm::Triple::loongarch64: {
+    std::string MT = "loongarch64-linux-gnu";
+    if (D.getVFS().exists(SysRoot + "/lib/" + MT))
+      return MT;
+    break;
+  }
+
   case llvm::Triple::m68k:
     return "m68k-linux-gnu";
 
@@ -114,6 +128,7 @@ std::string Linux::getMultiarchTriple(const Driver &D,
       return "mips64el-linux-gnu";
     break;
   }
+
   case llvm::Triple::ppc:
     if (D.getVFS().exists(SysRoot + "/lib/powerpc-linux-gnuspe"))
       return "powerpc-linux-gnuspe";
@@ -441,10 +456,19 @@ std::string Linux::getDynamicLinker(const ArgList &Args) const {
     Loader = HF ? "ld-linux-armhf.so.3" : "ld-linux.so.3";
     break;
   }
+
   case llvm::Triple::m68k:
     LibDir = "lib";
     Loader = "ld.so.1";
     break;
+
+  case llvm::Triple::loongarch32:
+  case llvm::Triple::loongarch64: {
+    LibDir = "lib" + tools::loongarch::getLoongArchABILibSuffix(Args, Triple);
+    Loader = "ld.so.1";
+    break;
+  }
+
   case llvm::Triple::mips:
   case llvm::Triple::mipsel:
   case llvm::Triple::mips64:

@@ -1189,6 +1189,8 @@ StringRef ELFObjectFile<ELFT>::getFileFormatName() const {
       return "elf32-littleriscv";
     case ELF::EM_CSKY:
       return "elf32-csky";
+    case ELF::EM_LOONGARCH:
+      return "elf32-loongarch";
     case ELF::EM_SPARC:
     case ELF::EM_SPARC32PLUS:
       return "elf32-sparc";
@@ -1213,6 +1215,8 @@ StringRef ELFObjectFile<ELFT>::getFileFormatName() const {
       return "elf64-s390";
     case ELF::EM_SPARCV9:
       return "elf64-sparc";
+    case ELF::EM_LOONGARCH:
+      return "elf64-loongarch";
     case ELF::EM_MIPS:
       return "elf64-mips";
     case ELF::EM_AMDGPU:
@@ -1271,6 +1275,15 @@ template <class ELFT> Triple::ArchType ELFObjectFile<ELFT>::getArch() const {
       return Triple::riscv32;
     case ELF::ELFCLASS64:
       return Triple::riscv64;
+    default:
+      report_fatal_error("Invalid ELFCLASS!");
+    }
+  case ELF::EM_LOONGARCH:
+    switch (EF.getHeader()->e_ident[ELF::EI_CLASS]) {
+    case ELF::ELFCLASS32:
+      return Triple::loongarch32;
+    case ELF::ELFCLASS64:
+      return Triple::loongarch64;
     default:
       report_fatal_error("Invalid ELFCLASS!");
     }

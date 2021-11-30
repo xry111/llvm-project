@@ -81,6 +81,7 @@ set(files
   invpcidintrin.h
   iso646.h
   keylockerintrin.h
+  larchintrin.h
   limits.h
   lwpintrin.h
   lzcntintrin.h

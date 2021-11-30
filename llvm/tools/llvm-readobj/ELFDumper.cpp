@@ -1183,6 +1183,7 @@ static const EnumEntry<unsigned> ElfMachineType[] = {
   ENUM_ENT(EM_LANAI,         "EM_LANAI"),
   ENUM_ENT(EM_BPF,           "EM_BPF"),
   ENUM_ENT(EM_VE,            "NEC SX-Aurora Vector Engine"),
+  ENUM_ENT(EM_LOONGARCH,     "LoongArch"),
 };
 
 static const EnumEntry<unsigned> ElfSymbolBindings[] = {
@@ -1589,6 +1590,13 @@ static const EnumEntry<unsigned> ElfHeaderAVRFlags[] = {
   ENUM_ENT(EF_AVR_LINKRELAX_PREPARED, "relaxable"),
 };
 
+
+static const EnumEntry<unsigned> ElfHeaderLoongArchFlags[] = {
+  ENUM_ENT(EF_LARCH_ABI_LP64, "LP64")
+  // FIXME: Change these and add more flags in future when all ABIs definition were finalized.
+  // See current definitions:
+  // https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html#_e_flags_identifies_abi_type_and_version
+};
 
 static const EnumEntry<unsigned> ElfSymOtherFlags[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, STV_INTERNAL),
@@ -3274,6 +3282,8 @@ template <class ELFT> void GNUELFDumper<ELFT>::printFileHeaders() {
   else if (e.e_machine == EM_AVR)
     ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderAVRFlags),
                           unsigned(ELF::EF_AVR_ARCH_MASK));
+  else if (e.e_machine == EM_LOONGARCH)
+    ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderLoongArchFlags));
   Str = "0x" + to_hexString(e.e_flags);
   if (!ElfFlags.empty())
     Str = Str + ", " + ElfFlags;
@@ -6289,6 +6299,8 @@ template <class ELFT> void LLVMELFDumper<ELFT>::printFileHeaders() {
     else if (E.e_machine == EM_AVR)
       W.printFlags("Flags", E.e_flags, makeArrayRef(ElfHeaderAVRFlags),
                    unsigned(ELF::EF_AVR_ARCH_MASK));
+    else if (E->e_machine == EM_LOONGARCH)
+      W.printFlags("Flags", E->e_flags, makeArrayRef(ElfHeaderLoongArchFlags));
     else
       W.printFlags("Flags", E.e_flags);
     W.printNumber("HeaderSize", E.e_ehsize);
