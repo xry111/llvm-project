@@ -329,6 +329,7 @@ bool LoongArchExpandPseudo::expandAtomicBinOpSubword(
 
   bool IsSwap = false;
   bool IsNand = false;
+  bool IsMaxMin = false;
 
   unsigned Opcode = 0;
   switch (I->getOpcode()) {
@@ -355,24 +356,28 @@ bool LoongArchExpandPseudo::expandAtomicBinOpSubword(
     LLVM_FALLTHROUGH;
   case LoongArch::ATOMIC_LOAD_MAX_I16_POSTRA:
     Opcode = LoongArch::AMMAX_DB_W;
+    IsMaxMin = true;
     break;
   case LoongArch::ATOMIC_LOAD_MIN_I8_POSTRA:
     SEOp = LoongArch::EXT_W_B32;
     LLVM_FALLTHROUGH;
   case LoongArch::ATOMIC_LOAD_MIN_I16_POSTRA:
     Opcode = LoongArch::AMMIN_DB_W;
+    IsMaxMin = true;
     break;
   case LoongArch::ATOMIC_LOAD_UMAX_I8_POSTRA:
     SEOp = LoongArch::EXT_W_B32;
     LLVM_FALLTHROUGH;
   case LoongArch::ATOMIC_LOAD_UMAX_I16_POSTRA:
     Opcode = LoongArch::AMMAX_DB_WU;
+    IsMaxMin = true;
     break;
   case LoongArch::ATOMIC_LOAD_UMIN_I8_POSTRA:
     SEOp = LoongArch::EXT_W_B32;
     LLVM_FALLTHROUGH;
   case LoongArch::ATOMIC_LOAD_UMIN_I16_POSTRA:
     Opcode = LoongArch::AMMIN_DB_WU;
+    IsMaxMin = true;
     break;
   case LoongArch::ATOMIC_LOAD_SUB_I8_POSTRA:
     SEOp = LoongArch::EXT_W_B32;
@@ -446,9 +451,15 @@ bool LoongArchExpandPseudo::expandAtomicBinOpSubword(
   } else if (!IsSwap) {
     //  <binop> binopres, oldval, incr2
     //  and newval, binopres, mask
-    BuildMI(loopMBB, DL, TII->get(Opcode), BinOpRes)
-        .addReg(OldVal)
-        .addReg(Incr);
+    if (IsMaxMin)
+      BuildMI(loopMBB, DL, TII->get(Opcode), BinOpRes)
+          .addReg(OldVal)
+          .addReg(Incr)
+          .addImm(0);
+    else
+      BuildMI(loopMBB, DL, TII->get(Opcode), BinOpRes)
+          .addReg(OldVal)
+          .addReg(Incr);
     BuildMI(loopMBB, DL, TII->get(LoongArch::AND32), BinOpRes)
         .addReg(BinOpRes)
         .addReg(Mask);
