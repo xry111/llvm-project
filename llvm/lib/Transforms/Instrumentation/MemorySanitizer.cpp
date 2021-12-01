@@ -4565,7 +4565,7 @@ struct VarArgLoongArch64Helper : public VarArgHelper {
   void finalizeInstrumentation() override {
     assert(!VAArgSize && !VAArgTLSCopy &&
            "finalizeInstrumentation called twice");
-    IRBuilder<> IRB(MSV.ActualFnStart->getFirstNonPHI());
+    IRBuilder<> IRB(MSV.FnPrologueEnd);
     VAArgSize = IRB.CreateLoad(IRB.getInt64Ty(), MS.VAArgOverflowSizeTLS);
     Value *CopySize = IRB.CreateAdd(ConstantInt::get(MS.IntptrTy, 0),
                                     VAArgSize);
