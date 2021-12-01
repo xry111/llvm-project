@@ -1,4 +1,4 @@
-  add_llvm_component_library(LLVMLoongArchDesc
+add_llvm_component_library(LLVMLoongArchDesc
   LoongArchABIInfo.cpp
   LoongArchFPABIInfo.cpp
   LoongArchAsmBackend.cpp
@@ -10,4 +10,7 @@
   LoongArchMCExpr.cpp
   LoongArchMCTargetDesc.cpp
   LoongArchTargetStreamer.cpp
+
+  ADD_TO_COMPONENT
+  LoongArch
   )
