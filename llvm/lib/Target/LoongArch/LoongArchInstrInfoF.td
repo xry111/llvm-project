@@ -140,12 +140,10 @@ class FSTX<string opstr, RegisterOperand DRC,
 }
 
 /// f{maxa/mina}.{s/d}
-class Float_Reg3_Fmaxa<string opstr, RegisterOperand RO,
-                 SDPatternOperator OpNode= null_frag>
+class Float_Reg3_Fmaxa<string opstr, RegisterOperand RO>
     : InstForm<(outs RO:$fd), (ins RO:$fj, RO:$fk),
           !strconcat(opstr, "\t$fd, $fj, $fk"),
-          [(set RO:$fd, (OpNode (fabs RO:$fj), (fabs RO:$fk)))],
-          FrmR, opstr>;
+          [], FrmR, opstr>;
 /// frecip
 class Float_Reg2_Frecip<string opstr, RegisterOperand RO,
                  SDPatternOperator OpNode= null_frag>
@@ -353,10 +351,10 @@ def FMAX_S      : Float_Reg3<"fmax.s", FGR32Opnd, fmaximum>, R3F<0b010001>;
 def FMAX_D      : Float_Reg3<"fmax.d", FGR64Opnd, fmaximum>, R3F<0b010010>;
 def FMIN_S      : Float_Reg3<"fmin.s", FGR32Opnd, fminimum>, R3F<0b010101>;
 def FMIN_D      : Float_Reg3<"fmin.d", FGR64Opnd, fminimum>, R3F<0b010110>;
-def FMAXA_S     : Float_Reg3_Fmaxa<"fmaxa.s", FGR32Opnd, fmaximum>, R3F<0b011001>;
-def FMAXA_D     : Float_Reg3_Fmaxa<"fmaxa.d", FGR64Opnd, fmaximum>, R3F<0b011010>;
-def FMINA_S     : Float_Reg3_Fmaxa<"fmina.s", FGR32Opnd, fminimum>, R3F<0b011101>;
-def FMINA_D     : Float_Reg3_Fmaxa<"fmina.d", FGR64Opnd, fminimum>, R3F<0b011110>;
+def FMAXA_S     : Float_Reg3_Fmaxa<"fmaxa.s", FGR32Opnd>, R3F<0b011001>;
+def FMAXA_D     : Float_Reg3_Fmaxa<"fmaxa.d", FGR64Opnd>, R3F<0b011010>;
+def FMINA_S     : Float_Reg3_Fmaxa<"fmina.s", FGR32Opnd>, R3F<0b011101>;
+def FMINA_D     : Float_Reg3_Fmaxa<"fmina.d", FGR64Opnd>, R3F<0b011110>;
 def FSCALEB_S   : Float_Reg3<"fscaleb.s", FGR32Opnd>, R3F<0b100001>;
 def FSCALEB_D   : Float_Reg3<"fscaleb.d", FGR64Opnd>, R3F<0b100010>;
 def FCOPYSIGN_S : Float_Reg3<"fcopysign.s", FGR32Opnd, fcopysign>, R3F<0b100101>;
