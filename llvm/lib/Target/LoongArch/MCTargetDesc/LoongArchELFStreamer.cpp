@@ -111,7 +111,7 @@ void LoongArchELFStreamer::emitValueImpl(const MCExpr *Value, unsigned Size,
 
   MCDataFragment *DF = getOrCreateDataFragment();
   flushPendingLabels(DF, DF->getContents().size());
-  MCDwarfLineEntry::Make(this, getCurrentSectionOnly());
+  MCDwarfLineEntry::make(this, getCurrentSectionOnly());
 
   unsigned Add, Sub;
   std::tie(Add, Sub) = getRelocPairForSize(Size);

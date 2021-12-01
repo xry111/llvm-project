@@ -444,7 +444,7 @@ LoongArchTargetLowering::LoongArchTargetLowering(const LoongArchTargetMachine &T
 
 bool
 LoongArchTargetLowering::allowsMisalignedMemoryAccesses(
-    EVT VT, unsigned, unsigned, MachineMemOperand::Flags, bool *Fast) const {
+    EVT VT, unsigned, Align, MachineMemOperand::Flags, bool *Fast) const {
   if (Fast)
     *Fast = true;
   return true;

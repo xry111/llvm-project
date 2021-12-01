@@ -111,9 +111,9 @@ class TargetRegisterClass;
                                 const LoongArchSubtarget &STI);
 
     bool allowsMisalignedMemoryAccesses(
-        EVT VT, unsigned AS = 0, unsigned Align = 1,
-        MachineMemOperand::Flags Flags = MachineMemOperand::MONone,
-        bool *Fast = nullptr) const override;
+        EVT VT, unsigned AS, Align A,
+        MachineMemOperand::Flags Flags,
+        bool *Fast) const override;
 
     MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {
       return MVT::i32;
@@ -127,7 +127,7 @@ class TargetRegisterClass;
 
     /// Return the correct alignment for the current calling convention.
     Align getABIAlignmentForCallingConv(Type *ArgTy,
-                                        DataLayout DL) const override {
+                                        const DataLayout &DL) const override {
       const Align ABIAlign = DL.getABITypeAlign(ArgTy);
       if (ArgTy->isVectorTy())
         return std::min(ABIAlign, Align(8));
@@ -191,14 +191,6 @@ class TargetRegisterClass;
     Register
     getExceptionSelectorRegister(const Constant *PersonalityFn) const override {
       return ABI.IsLP64() ? LoongArch::A1_64 : LoongArch::A1;
-    }
-
-    /// Returns true if a cast between SrcAS and DestAS is a noop.
-    bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override {
-      // Mips doesn't have any special address spaces so we just reserve
-      // the first 256 for software use (e.g. OpenCL) and treat casts
-      // between them as noops.
-      return SrcAS < 256 && DestAS < 256;
     }
 
     bool isJumpTableRelative() const override {
