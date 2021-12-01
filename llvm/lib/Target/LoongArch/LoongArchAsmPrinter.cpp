@@ -458,7 +458,7 @@ void LoongArchAsmPrinter::emitStartOfAsmFile(Module &M) {
   StringRef CPU = LoongArch_MC::selectLoongArchCPU(TT, TM.getTargetCPU());
   StringRef FS = TM.getTargetFeatureString();
   const LoongArchTargetMachine &MTM = static_cast<const LoongArchTargetMachine &>(TM);
-  const LoongArchSubtarget STI(TT, CPU, FS, MTM, None);
+  const LoongArchSubtarget STI(TT, CPU, CPU, FS, MTM, None);
 
   const LoongArchABIInfo &ABI = MTM.getABI();
 

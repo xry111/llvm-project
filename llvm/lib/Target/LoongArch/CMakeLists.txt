@@ -1,3 +1,5 @@
+add_llvm_component_group(LoongArch)
+
 set(LLVM_TARGET_DEFINITIONS LoongArch.td)
 
 tablegen(LLVM LoongArchGenAsmMatcher.inc -gen-asm-matcher)

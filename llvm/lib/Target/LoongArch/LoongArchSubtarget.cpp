@@ -33,16 +33,17 @@ using namespace llvm;
 
 void LoongArchSubtarget::anchor() {}
 
-LoongArchSubtarget::LoongArchSubtarget(const Triple &TT, StringRef CPU, StringRef FS,
-                             const LoongArchTargetMachine &TM,
-                             MaybeAlign StackAlignOverride)
-    : LoongArchGenSubtargetInfo(TT, CPU, FS),
+LoongArchSubtarget::LoongArchSubtarget(const Triple &TT, StringRef CPU,
+                                       StringRef TuneCPU, StringRef FS,
+                                       const LoongArchTargetMachine &TM,
+                                       MaybeAlign StackAlignOverride)
+    : LoongArchGenSubtargetInfo(TT, CPU, CPU, FS),
       HasLA64(false),
       IsSoftFloat(false), IsSingleFloat(false),
       IsFP64bit(false),
       StackAlignOverride(StackAlignOverride),
       TM(TM), TargetTriple(TT), TSInfo(),
-      InstrInfo(initializeSubtargetDependencies(CPU, FS, TM)),
+      InstrInfo(initializeSubtargetDependencies(CPU, TuneCPU, FS, TM)),
       FrameLowering(*this),
       TLInfo(TM, *this) {
 
@@ -72,12 +73,14 @@ CodeGenOpt::Level LoongArchSubtarget::getOptLevelToEnablePostRAScheduler() const
 }
 
 LoongArchSubtarget &
-LoongArchSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS,
-                                               const TargetMachine &TM) {
+LoongArchSubtarget::initializeSubtargetDependencies(StringRef CPU,
+                                                    StringRef TuneCPU,
+                                                    StringRef FS,
+                                                    const TargetMachine &TM) {
   StringRef CPUName = LoongArch_MC::selectLoongArchCPU(TM.getTargetTriple(), CPU);
 
   // Parse features string.
-  ParseSubtargetFeatures(CPUName, FS);
+  ParseSubtargetFeatures(CPUName, TuneCPU, FS);
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUName);
 

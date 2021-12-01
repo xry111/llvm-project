@@ -70,7 +70,7 @@ static MCRegisterInfo *createLoongArchMCRegisterInfo(const Triple &TT) {
 static MCSubtargetInfo *createLoongArchMCSubtargetInfo(const Triple &TT,
                                                   StringRef CPU, StringRef FS) {
   CPU = LoongArch_MC::selectLoongArchCPU(TT, CPU);
-  return createLoongArchMCSubtargetInfoImpl(TT, CPU, FS);
+  return createLoongArchMCSubtargetInfoImpl(TT, CPU, CPU, FS);
 }
 
 static MCAsmInfo *createLoongArchMCAsmInfo(const MCRegisterInfo &MRI,

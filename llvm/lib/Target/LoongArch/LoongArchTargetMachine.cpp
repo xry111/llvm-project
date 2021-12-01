@@ -109,12 +109,16 @@ const LoongArchSubtarget *
 LoongArchTargetMachine::getSubtargetImpl(const Function &F) const {
   Attribute CPUAttr = F.getFnAttribute("target-cpu");
   Attribute FSAttr = F.getFnAttribute("target-features");
+  Attribute TuneAttr = F.getFnAttribute("tune-cpu");
 
-  std::string CPU = !CPUAttr.hasAttribute(Attribute::None)
-                        ? CPUAttr.getValueAsString().str()
+  std::string CPU =
+      CPUAttr.isValid() ? CPUAttr.getValueAsString().str()
                         : TargetCPU;
-  std::string FS = !FSAttr.hasAttribute(Attribute::None)
-                       ? FSAttr.getValueAsString().str()
+  std::string TuneCPU =
+      TuneAttr.isValid() ? CPUAttr.getValueAsString().str()
+                         : CPU;
+  std::string FS =
+      FSAttr.isValid() ? FSAttr.getValueAsString().str()
                        : TargetFS;
 
   // FIXME: This is related to the code below to reset the target options,
@@ -133,8 +137,10 @@ LoongArchTargetMachine::getSubtargetImpl(const Function &F) const {
     // creation will depend on the TM and the code generation flags on the
     // function that reside in TargetOptions.
     resetTargetOptions(F);
-    I = std::make_unique<LoongArchSubtarget>(TargetTriple, CPU, FS, *this,
-        MaybeAlign(Options.StackAlignmentOverride));
+
+    I = std::make_unique<LoongArchSubtarget>(
+        TargetTriple, CPU, TuneCPU, FS, *this,
+        MaybeAlign(F.getParent()->getOverrideStackAlignment()));
   }
   return I.get();
 }

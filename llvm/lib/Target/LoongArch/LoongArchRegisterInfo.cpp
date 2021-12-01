@@ -141,7 +141,7 @@ getReservedRegs(const MachineFunction &MF) const {
     // Reserve the base register if we need to both realign the stack and
     // allocate variable-sized objects at runtime. This should test the
     // same conditions as LoongArchFrameLowering::hasBP().
-    if (needsStackRealignment(MF) &&
+    if (hasStackRealignment(MF) &&
         MF.getFrameInfo().hasVarSizedObjects()) {
       Reserved.set(LoongArch::S7);
       Reserved.set(LoongArch::S7_64);
@@ -271,7 +271,7 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
 
   if ((FrameIndex >= MinCSFI && FrameIndex <= MaxCSFI) || EhDataRegFI)
     FrameReg = ABI.GetStackPtr();
-  else if (RegInfo->needsStackRealignment(MF)) {
+  else if (RegInfo->hasStackRealignment(MF)) {
     if (MFI.hasVarSizedObjects() && !MFI.isFixedObjectIndex(FrameIndex))
       FrameReg = ABI.GetBasePtr();
     else if (MFI.isFixedObjectIndex(FrameIndex))

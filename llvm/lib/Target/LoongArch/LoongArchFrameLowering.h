@@ -31,7 +31,7 @@ public:
   void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
-  int getFrameIndexReference(const MachineFunction &MF, int FI,
+  StackOffset getFrameIndexReference(const MachineFunction &MF, int FI,
                              Register &FrameReg) const override;
 
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,

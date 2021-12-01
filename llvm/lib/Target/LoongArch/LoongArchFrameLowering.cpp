@@ -218,7 +218,7 @@ void LoongArchFrameLowering::emitPrologue(MachineFunction &MF,
     BuildMI(MBB, MBBI, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
         .addCFIIndex(CFIIndex);
 
-    if (RegInfo.needsStackRealignment(MF)) {
+    if (RegInfo.hasStackRealignment(MF)) {
       // addiu $Reg, $zero, -MaxAlignment
       // andi $sp, $sp, $Reg
       unsigned VR = MF.getRegInfo().createVirtualRegister(RC);
@@ -304,7 +304,7 @@ void LoongArchFrameLowering::emitEpilogue(MachineFunction &MF,
   TII.adjustStackPtr(SP, StackSize, MBB, MBBI);
 }
 
-int
+StackOffset
 LoongArchFrameLowering::getFrameIndexReference(const MachineFunction &MF,
                                                int FI,
                                                Register &FrameReg) const {
@@ -316,8 +316,9 @@ LoongArchFrameLowering::getFrameIndexReference(const MachineFunction &MF,
   else
     FrameReg = hasBP(MF) ? ABI.GetBasePtr() : ABI.GetStackPtr();
 
-  return MFI.getObjectOffset(FI) + MFI.getStackSize() -
-         getOffsetOfLocalArea() + MFI.getOffsetAdjustment();
+  return StackOffset::getFixed(MFI.getObjectOffset(FI) +
+                               MFI.getStackSize() - getOffsetOfLocalArea() +
+                               MFI.getOffsetAdjustment());
 }
 
 bool LoongArchFrameLowering::spillCalleeSavedRegisters(
@@ -414,14 +415,14 @@ bool LoongArchFrameLowering::hasFP(const MachineFunction &MF) const {
 
   return MF.getTarget().Options.DisableFramePointerElim(MF) ||
       MFI.hasVarSizedObjects() || MFI.isFrameAddressTaken() ||
-      TRI->needsStackRealignment(MF);
+      TRI->hasStackRealignment(MF);
 }
 
 bool LoongArchFrameLowering::hasBP(const MachineFunction &MF) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetRegisterInfo *TRI = STI.getRegisterInfo();
 
-  return MFI.hasVarSizedObjects() && TRI->needsStackRealignment(MF);
+  return MFI.hasVarSizedObjects() && TRI->hasStackRealignment(MF);
 }
 
 // Estimate the size of the stack, including the incoming arguments. We need to

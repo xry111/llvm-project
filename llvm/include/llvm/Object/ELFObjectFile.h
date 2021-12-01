@@ -1279,7 +1279,7 @@ template <class ELFT> Triple::ArchType ELFObjectFile<ELFT>::getArch() const {
       report_fatal_error("Invalid ELFCLASS!");
     }
   case ELF::EM_LOONGARCH:
-    switch (EF.getHeader()->e_ident[ELF::EI_CLASS]) {
+    switch (EF.getHeader().e_ident[ELF::EI_CLASS]) {
     case ELF::ELFCLASS32:
       return Triple::loongarch32;
     case ELF::ELFCLASS64:
