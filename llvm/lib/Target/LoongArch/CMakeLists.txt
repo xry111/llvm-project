@@ -31,6 +31,9 @@ add_llvm_target(LoongArchCodeGen
   LoongArchSubtarget.cpp
   LoongArchTargetMachine.cpp
   LoongArchTargetObjectFile.cpp
+
+  ADD_TO_COMPONENT
+  LoongArch
   )
 
 add_subdirectory(AsmParser)
