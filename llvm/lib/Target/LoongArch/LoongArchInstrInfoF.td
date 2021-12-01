@@ -622,3 +622,12 @@ def : LoongArchPat<(LoongArchTruncIntFP FGR64Opnd:$src),
 
 def : LoongArchPat<(LoongArchTruncIntFP FGR32Opnd:$src),
               (FTINTRZ_L_S FGR32Opnd:$src)>;
+
+def : LoongArchPat<(fminimum (fabs FGR32Opnd:$fj), (fabs FGR32Opnd:$fk)),
+                   (FABS_S (FMINA_S $fj, $fk))>;
+def : LoongArchPat<(fminimum (fabs FGR64Opnd:$fj), (fabs FGR64Opnd:$fk)),
+                   (FABS_D (FMINA_D $fj, $fk))>;
+def : LoongArchPat<(fmaximum (fabs FGR32Opnd:$fj), (fabs FGR32Opnd:$fk)),
+                   (FABS_S (FMAXA_S $fj, $fk))>;
+def : LoongArchPat<(fmaximum (fabs FGR64Opnd:$fj), (fabs FGR64Opnd:$fk)),
+                   (FABS_D (FMAXA_D $fj, $fk))>;
