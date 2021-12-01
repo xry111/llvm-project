@@ -600,7 +600,7 @@ class ATOMIC<string opstr, RegisterOperand RD, DAGOperand MO,
                !strconcat(opstr, "\t$rd, $rk, $addr"),
                [(set RD:$rd, (OpNode RD:$rk, Addr:$addr))],
                FrmR, opstr> {
-    let DecoderMethod = "DecodeMem";
+    let DecoderMethod = "DecodeMemForAtomicOp";
     let canFoldAsLoad = 1;
     string BaseOpcode = opstr;
     let mayLoad = 1;

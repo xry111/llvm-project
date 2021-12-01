@@ -106,6 +106,11 @@ static DecodeStatus DecodeMem(MCInst &Inst,
                               uint64_t Address,
                               const void *Decoder);
 
+static DecodeStatus DecodeMemForAtomicOp(MCInst &Inst,
+                                         unsigned Insn,
+                                         uint64_t Address,
+                                         const void *Decoder);
+
 static DecodeStatus DecodeMemSimm14(MCInst &Inst,
                                     unsigned Insn,
                                     uint64_t Address,
@@ -323,6 +328,26 @@ static DecodeStatus DecodeMem(MCInst &Inst,
   Inst.addOperand(MCOperand::createReg(Reg));
   Inst.addOperand(MCOperand::createReg(Base));
   Inst.addOperand(MCOperand::createImm(Offset));
+
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeMemForAtomicOp(MCInst &Inst,
+                                         unsigned Insn,
+                                         uint64_t Address,
+                                         const void *Decoder) {
+  unsigned Val = fieldFromInstruction(Insn, 10, 5);
+  unsigned Reg = fieldFromInstruction(Insn, 0, 5);
+  unsigned Base = fieldFromInstruction(Insn, 5, 5);
+
+  Val = getReg(Decoder, LoongArch::GPR32RegClassID, Val);
+  Reg = getReg(Decoder, LoongArch::GPR32RegClassID, Reg);
+  Base = getReg(Decoder, LoongArch::GPR32RegClassID, Base);
+
+  Inst.addOperand(MCOperand::createReg(Reg));
+  Inst.addOperand(MCOperand::createReg(Val));
+  Inst.addOperand(MCOperand::createReg(Base));
+  Inst.addOperand(MCOperand::createImm(0));
 
   return MCDisassembler::Success;
 }
