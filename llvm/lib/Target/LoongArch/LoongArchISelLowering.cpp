@@ -308,6 +308,11 @@ LoongArchTargetLowering::LoongArchTargetLowering(const LoongArchTargetMachine &T
   setOperationAction(ISD::FREM,              MVT::f32,   Expand);
   setOperationAction(ISD::FREM,              MVT::f64,   Expand);
 
+  setOperationAction(ISD::FMINNUM_IEEE,      MVT::f32,   Legal);
+  setOperationAction(ISD::FMINNUM_IEEE,      MVT::f64,   Legal);
+  setOperationAction(ISD::FMAXNUM_IEEE,      MVT::f32,   Legal);
+  setOperationAction(ISD::FMAXNUM_IEEE,      MVT::f64,   Legal);
+
   // Lower f16 conversion operations into library calls
   setOperationAction(ISD::FP16_TO_FP,        MVT::f32,   Expand);
   setOperationAction(ISD::FP_TO_FP16,        MVT::f32,   Expand);

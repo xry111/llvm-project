@@ -347,10 +347,10 @@ def FMUL_S      : Float_Reg3<"fmul.s", FGR32Opnd, fmul>, R3F<0b001001>;
 def FMUL_D      : Float_Reg3<"fmul.d", FGR64Opnd, fmul>, R3F<0b001010>;
 def FDIV_S      : Float_Reg3<"fdiv.s", FGR32Opnd, fdiv>, R3F<0b001101>;
 def FDIV_D      : Float_Reg3<"fdiv.d", FGR64Opnd, fdiv>, R3F<0b001110>;
-def FMAX_S      : Float_Reg3<"fmax.s", FGR32Opnd, fmaximum>, R3F<0b010001>;
-def FMAX_D      : Float_Reg3<"fmax.d", FGR64Opnd, fmaximum>, R3F<0b010010>;
-def FMIN_S      : Float_Reg3<"fmin.s", FGR32Opnd, fminimum>, R3F<0b010101>;
-def FMIN_D      : Float_Reg3<"fmin.d", FGR64Opnd, fminimum>, R3F<0b010110>;
+def FMAX_S      : Float_Reg3<"fmax.s", FGR32Opnd, fmaxnum_ieee>, R3F<0b010001>;
+def FMAX_D      : Float_Reg3<"fmax.d", FGR64Opnd, fmaxnum_ieee>, R3F<0b010010>;
+def FMIN_S      : Float_Reg3<"fmin.s", FGR32Opnd, fminnum_ieee>, R3F<0b010101>;
+def FMIN_D      : Float_Reg3<"fmin.d", FGR64Opnd, fminnum_ieee>, R3F<0b010110>;
 def FMAXA_S     : Float_Reg3_Fmaxa<"fmaxa.s", FGR32Opnd>, R3F<0b011001>;
 def FMAXA_D     : Float_Reg3_Fmaxa<"fmaxa.d", FGR64Opnd>, R3F<0b011010>;
 def FMINA_S     : Float_Reg3_Fmaxa<"fmina.s", FGR32Opnd>, R3F<0b011101>;
@@ -622,3 +622,6 @@ def : LoongArchPat<(LoongArchTruncIntFP FGR64Opnd:$src),
 
 def : LoongArchPat<(LoongArchTruncIntFP FGR32Opnd:$src),
               (FTINTRZ_L_S FGR32Opnd:$src)>;
+
+def : Pat<(fcanonicalize FGR32Opnd:$src), (FMAX_S $src, $src)>;
+def : Pat<(fcanonicalize FGR64Opnd:$src), (FMAX_D $src, $src)>;
