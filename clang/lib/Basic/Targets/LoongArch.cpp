@@ -59,11 +59,16 @@ void LoongArchTargetInfo::getTargetDefines(const LangOptions &Opts,
     Builder.defineMacro("__loongarch64");
   }
 
+  //TODO: support others ABIs
+  if (ABI == "lp64d") {
+    Builder.defineMacro("__loongarch_lp64");
+  }
+
   if (ABI == "lp32") {
     Builder.defineMacro("_ABILP32", "1");
   } else if (ABI == "lpx32") {
     Builder.defineMacro("_ABILPX32", "2");
-  } else if (ABI == "lp64") {
+  } else if (ABI == "lp64d") {
     Builder.defineMacro("_ABILP64", "3");
     Builder.defineMacro("_LOONGARCH_SIM", "_ABILP64");
   } else
@@ -107,7 +112,7 @@ void LoongArchTargetInfo::getTargetDefines(const LangOptions &Opts,
   // found in 64-bit processors. In the case of lp32 on a 64-bit processor,
   // the instructions exist but using them violates the ABI since they
   // require 64-bit GPRs and LP32 only supports 32-bit GPRs.
-  if (ABI == "lpx32" || ABI == "lp64")
+  if (ABI == "lpx32" || ABI == "lp64d")
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8");
 }
 
@@ -131,7 +136,7 @@ bool LoongArchTargetInfo::validateTarget(DiagnosticsEngine &Diags) const {
   }
 
   // 64-bit ABI's require 64-bit CPU's.
-  if (!processorSupportsGPR64() && (ABI == "lpx32" || ABI == "lp64")) {
+  if (!processorSupportsGPR64() && (ABI == "lpx32" || ABI == "lp64d")) {
     Diags.Report(diag::err_target_unsupported_abi) << ABI << CPU;
     return false;
   }
@@ -145,18 +150,18 @@ bool LoongArchTargetInfo::validateTarget(DiagnosticsEngine &Diags) const {
     return false;
   }
 
-  // FIXME: It's valid to use lpx32/lp64 on a loongarch32 triple but the backend
+  // FIXME: It's valid to use lpx32/lp64d on a loongarch32 triple but the backend
   //        can't handle this yet. It's better to fail here than on the
   //        backend assertion.
-  if (getTriple().isLoongArch32() && (ABI == "lpx32" || ABI == "lp64")) {
+  if (getTriple().isLoongArch32() && (ABI == "lpx32" || ABI == "lp64d")) {
     Diags.Report(diag::err_target_unsupported_abi_for_triple)
         << ABI << getTriple().str();
     return false;
   }
 
-  // -mfp32 and lpx32/lp64 ABIs are incompatible
+  // -mfp32 and lpx32/lp64d ABIs are incompatible
   if (FPMode != FP64 && !IsSingleFloat &&
-      (ABI == "lpx32" || ABI == "lp64")) {
+      (ABI == "lpx32"  || ABI == "lp64d")) {
     Diags.Report(diag::err_opt_not_valid_with_opt) << "-mfp32" << ABI;
     return false;
   }

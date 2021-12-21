@@ -482,7 +482,8 @@ std::string Linux::getDynamicLinker(const ArgList &Args) const {
   case llvm::Triple::loongarch32:
   case llvm::Triple::loongarch64: {
     LibDir = "lib" + tools::loongarch::getLoongArchABILibSuffix(Args, Triple);
-    Loader = "ld.so.1";
+    //TODO: support other ABIs
+    Loader = "ld-linux-loongarch-lp64d.so.1";
     break;
   }
 

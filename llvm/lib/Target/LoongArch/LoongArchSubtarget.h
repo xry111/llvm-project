@@ -75,7 +75,7 @@ public:
   void getCriticalPathRCs(RegClassVector &CriticalPathRCs) const override;
   CodeGenOpt::Level getOptLevelToEnablePostRAScheduler() const override;
 
-  bool isABI_LP64() const;
+  bool isABI_LP64D() const;
   bool isABI_LPX32() const;
   bool isABI_LP32() const;
   const LoongArchABIInfo &getABI() const;

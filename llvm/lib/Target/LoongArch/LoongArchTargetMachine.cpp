@@ -59,7 +59,7 @@ static std::string computeDataLayout(const Triple &TT, StringRef CPU,
     Ret += "-m:e";
 
   // Pointers are 32 bit on some ABIs.
-  if (!ABI.IsLP64())
+  if (!(ABI.IsLP64D()))
     Ret += "-p:32:32";
 
   // 8 and 16 bit integers only need to have natural alignment, but try to
@@ -69,7 +69,7 @@ static std::string computeDataLayout(const Triple &TT, StringRef CPU,
   // 32 bit registers are always available and the stack is at least 64 bit
   // aligned. On LP64 64 bit registers are also available and the stack is
   // 128 bit aligned.
-  if (ABI.IsLP64() || ABI.IsLPX32())
+  if (ABI.IsLP64D() || ABI.IsLPX32())
     Ret += "-n32:64-S128";
   else
     Ret += "-n32-S64";

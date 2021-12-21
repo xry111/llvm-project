@@ -91,7 +91,7 @@ LoongArchRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   if (Subtarget.isSingleFloat())
     return CSR_SingleFloatOnly_SaveList;
 
-  if (Subtarget.isABI_LP64())
+  if (Subtarget.isABI_LP64D())
     return CSR_LP64_SaveList;
 
   if (Subtarget.isABI_LPX32())
@@ -108,7 +108,7 @@ LoongArchRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
   if (Subtarget.isSingleFloat())
     return CSR_SingleFloatOnly_RegMask;
 
-  if (Subtarget.isABI_LP64())
+  if (Subtarget.isABI_LP64D())
     return CSR_LP64_RegMask;
 
   return CSR_LP32_RegMask;
@@ -361,11 +361,11 @@ Register LoongArchRegisterInfo::
 getFrameRegister(const MachineFunction &MF) const {
   const LoongArchSubtarget &Subtarget = MF.getSubtarget<LoongArchSubtarget>();
   const TargetFrameLowering *TFI = Subtarget.getFrameLowering();
-  bool IsLP64 =
-      static_cast<const LoongArchTargetMachine &>(MF.getTarget()).getABI().IsLP64();
+  bool IsLP64D =
+      static_cast<const LoongArchTargetMachine &>(MF.getTarget()).getABI().IsLP64D();
 
-  return TFI->hasFP(MF) ? (IsLP64 ? LoongArch::FP_64 : LoongArch::FP) :
-                            (IsLP64 ? LoongArch::SP_64 : LoongArch::SP);
+  return TFI->hasFP(MF) ? (IsLP64D ? LoongArch::FP_64 : LoongArch::FP) :
+                            (IsLP64D ? LoongArch::SP_64 : LoongArch::SP);
 }
 
 const TargetRegisterClass *

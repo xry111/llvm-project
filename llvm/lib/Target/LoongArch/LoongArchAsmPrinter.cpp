@@ -189,7 +189,7 @@ const char *LoongArchAsmPrinter::getCurrentABIString() const {
   switch (static_cast<LoongArchTargetMachine &>(TM).getABI().GetEnumValue()) {
   case LoongArchABIInfo::ABI::LP32:  return "abilp32";
   case LoongArchABIInfo::ABI::LPX32:  return "abilpx32";
-  case LoongArchABIInfo::ABI::LP64:  return "abilp64";
+  case LoongArchABIInfo::ABI::LP64D:  return "abilp64d";
   default: llvm_unreachable("Unknown LoongArch ABI");
   }
 }

@@ -436,11 +436,11 @@ LoongArchTargetLowering::LoongArchTargetLowering(const LoongArchTargetMachine &T
   setMinFunctionAlignment(Subtarget.is64Bit() ? Align(8) : Align(4));
 
   // The arguments on the stack are defined in terms of 4-byte slots on LP32
-  // and 8-byte slots on LPX32/LP64.
-  setMinStackArgumentAlignment((ABI.IsLPX32() || ABI.IsLP64()) ? Align(8)
+  // and 8-byte slots on LPX32/LP64D.
+  setMinStackArgumentAlignment((ABI.IsLPX32() || ABI.IsLP64D()) ? Align(8)
                                                                : Align(4));
 
-  setStackPointerRegisterToSaveRestore(ABI.IsLP64() ? LoongArch::SP_64 : LoongArch::SP);
+  setStackPointerRegisterToSaveRestore(ABI.IsLP64D() ? LoongArch::SP_64 : LoongArch::SP);
 
   MaxStoresPerMemcpy = 16;
 
@@ -1972,7 +1972,7 @@ SDValue LoongArchTargetLowering::lowerVAARG(SDValue Op, SelectionDAG &DAG) const
       llvm::MaybeAlign(Node->getConstantOperandVal(3)).valueOrOne();
   const Value *SV = cast<SrcValueSDNode>(Node->getOperand(2))->getValue();
   SDLoc DL(Node);
-  unsigned ArgSlotSizeInBytes = (ABI.IsLPX32() || ABI.IsLP64()) ? 8 : 4;
+  unsigned ArgSlotSizeInBytes = (ABI.IsLPX32() || ABI.IsLP64D()) ? 8 : 4;
 
   SDValue VAListLoad = DAG.getLoad(getPointerTy(DAG.getDataLayout()), DL, Chain,
                                    VAListPtr, MachinePointerInfo(SV));
@@ -1980,7 +1980,7 @@ SDValue LoongArchTargetLowering::lowerVAARG(SDValue Op, SelectionDAG &DAG) const
 
   // Re-align the pointer if necessary.
   // It should only ever be necessary for 64-bit types on LP32 since the minimum
-  // argument alignment is the same as the maximum type alignment for LPX32/LP64.
+  // argument alignment is the same as the maximum type alignment for LPX32/LP64D.
   //
   // FIXME: We currently align too often. The code generator doesn't notice
   //        when the pointer is still aligned from the last va_arg (or pair of
@@ -2061,7 +2061,7 @@ lowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const {
   EVT VT = Op.getValueType();
   SDLoc DL(Op);
   SDValue FrameAddr = DAG.getCopyFromReg(
-      DAG.getEntryNode(), DL, ABI.IsLP64() ? LoongArch::FP_64 : LoongArch::FP, VT);
+      DAG.getEntryNode(), DL, ABI.IsLP64D() ? LoongArch::FP_64 : LoongArch::FP, VT);
   return FrameAddr;
 }
 
@@ -2077,7 +2077,7 @@ SDValue LoongArchTargetLowering::lowerRETURNADDR(SDValue Op,
   MachineFunction &MF = DAG.getMachineFunction();
   MachineFrameInfo &MFI = MF.getFrameInfo();
   MVT VT = Op.getSimpleValueType();
-  unsigned RA = ABI.IsLP64() ? LoongArch::RA_64 : LoongArch::RA;
+  unsigned RA = ABI.IsLP64D() ? LoongArch::RA_64 : LoongArch::RA;
   MFI.setReturnAddressIsTaken(true);
 
   // Return RA, which contains the return address. Mark it an implicit live-in.
@@ -2099,12 +2099,12 @@ SDValue LoongArchTargetLowering::lowerEH_RETURN(SDValue Op, SelectionDAG &DAG)
   SDValue Offset    = Op.getOperand(1);
   SDValue Handler   = Op.getOperand(2);
   SDLoc DL(Op);
-  EVT Ty = ABI.IsLP64() ? MVT::i64 : MVT::i32;
+  EVT Ty = ABI.IsLP64D() ? MVT::i64 : MVT::i32;
 
   // Store stack offset in A1, store jump target in A0. Glue CopyToReg and
   // EH_RETURN nodes, so that instructions are emitted back-to-back.
-  unsigned OffsetReg = ABI.IsLP64() ? LoongArch::A1_64 : LoongArch::A1;
-  unsigned AddrReg = ABI.IsLP64() ? LoongArch::A0_64 : LoongArch::A0;
+  unsigned OffsetReg = ABI.IsLP64D() ? LoongArch::A1_64 : LoongArch::A1;
+  unsigned AddrReg = ABI.IsLP64D() ? LoongArch::A0_64 : LoongArch::A0;
   Chain = DAG.getCopyToReg(Chain, DL, OffsetReg, Offset, SDValue());
   Chain = DAG.getCopyToReg(Chain, DL, AddrReg, Handler, Chain.getValue(1));
   return DAG.getNode(LoongArchISD::EH_RETURN, DL, MVT::Other, Chain,
@@ -2647,7 +2647,7 @@ LoongArchTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     Chain = DAG.getCALLSEQ_START(Chain, NextStackOffset, 0, DL);
 
   SDValue StackPtr =
-      DAG.getCopyFromReg(Chain, DL, ABI.IsLP64() ? LoongArch::SP_64 : LoongArch::SP,
+      DAG.getCopyFromReg(Chain, DL, ABI.IsLP64D() ? LoongArch::SP_64 : LoongArch::SP,
                          getPointerTy(DAG.getDataLayout()));
 
   std::deque<std::pair<unsigned, SDValue>> RegsToPass;
@@ -2887,7 +2887,7 @@ static SDValue UnpackFromArgumentSlot(SDValue Val, const CCValAssign &VA,
   }
 
   // If this is an value smaller than the argument slot size (32-bit for LP32,
-  // 64-bit for LPX32/LP64), it has been promoted in some way to the argument slot
+  // 64-bit for LPX32/LP64D), it has been promoted in some way to the argument slot
   // size. Extract the value and insert any appropriate assertions regarding
   // sign/zero extension.
   switch (VA.getLocInfo()) {
@@ -3040,7 +3040,7 @@ SDValue LoongArchTargetLowering::LowerFormalArguments(
       unsigned Reg = LoongArchFI->getSRetReturnReg();
       if (!Reg) {
         Reg = MF.getRegInfo().createVirtualRegister(
-            getRegClassFor(ABI.IsLP64() ? MVT::i64 : MVT::i32));
+            getRegClassFor(ABI.IsLP64D() ? MVT::i64 : MVT::i32));
         LoongArchFI->setSRetReturnReg(Reg);
       }
       SDValue Copy = DAG.getCopyToReg(DAG.getEntryNode(), DL, Reg, InVals[i]);
@@ -3078,7 +3078,7 @@ LoongArchTargetLowering::CanLowerReturn(CallingConv::ID CallConv,
 
 bool
 LoongArchTargetLowering::shouldSignExtendTypeInLibCall(EVT Type, bool IsSigned) const {
-  if ((ABI.IsLPX32() || ABI.IsLP64()) && Type == MVT::i32)
+  if ((ABI.IsLPX32() || ABI.IsLP64D()) && Type == MVT::i32)
       return true;
 
   return IsSigned;
@@ -3166,7 +3166,7 @@ LoongArchTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
       llvm_unreachable("sret virtual register not created in the entry block");
     SDValue Val =
         DAG.getCopyFromReg(Chain, DL, Reg, getPointerTy(DAG.getDataLayout()));
-    unsigned A0 = ABI.IsLP64() ? LoongArch::A0_64 : LoongArch::A0;
+    unsigned A0 = ABI.IsLP64D() ? LoongArch::A0_64 : LoongArch::A0;
 
     Chain = DAG.getCopyToReg(Chain, DL, A0, Val, Flag);
     Flag = Chain.getValue(1);
@@ -3710,7 +3710,7 @@ void LoongArchTargetLowering::writeVarArgRegs(std::vector<SDValue> &OutChains,
 
   // Copy the integer registers that have not been used for argument passing
   // to the argument register save area. For LP32, the save area is allocated
-  // in the caller's stack frame, while for LPX32/LP64, it is allocated in the
+  // in the caller's stack frame, while for LPX32/LP64D, it is allocated in the
   // callee's stack frame.
   for (unsigned I = Idx; I < ArgRegs.size();
        ++I, VaArgOffset += RegSizeInBytes) {

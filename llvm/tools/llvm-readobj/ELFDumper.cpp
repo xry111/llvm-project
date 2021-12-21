@@ -1612,9 +1612,8 @@ const EnumEntry<unsigned> ElfHeaderAVRFlags[] = {
   ENUM_ENT(EF_AVR_LINKRELAX_PREPARED, "relaxable"),
 };
 
-
 const EnumEntry<unsigned> ElfHeaderLoongArchFlags[] = {
-  ENUM_ENT(EF_LARCH_ABI_LP64, "LP64")
+  ENUM_ENT(EF_LARCH_ABI_LP64D, "LP64D")
   // FIXME: Change these and add more flags in future when all ABIs definition were finalized.
   // See current definitions:
   // https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html#_e_flags_identifies_abi_type_and_version

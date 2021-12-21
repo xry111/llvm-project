@@ -8317,7 +8317,7 @@ Address LoongArchABIInfo::EmitVAArg(CodeGenFunction &CGF, Address VAListAddr,
 
 ABIArgInfo LoongArchABIInfo::extendType(QualType Ty) const {
   int TySize = getContext().getTypeSize(Ty);
-  // LP64 ABI requires unsigned 32 bit integers to be sign extended.
+  // LP64D ABI requires unsigned 32 bit integers to be sign extended.
   if (GRLen == 64 && Ty->isUnsignedIntegerOrEnumerationType() && TySize == 32)
     return ABIArgInfo::getSignExtend(Ty);
   return ABIArgInfo::getExtend(Ty);

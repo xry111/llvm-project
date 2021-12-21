@@ -626,7 +626,7 @@ static llvm::Triple computeTargetTriple(const Driver &D,
       Target = Target.get32BitArchVariant();
       if (Target.getEnvironment() == llvm::Triple::GNUABI64)
         Target.setEnvironment(llvm::Triple::GNU);
-    } else if (ABIName == "lp64") {
+    } else if (ABIName == "lp64d") {
       Target = Target.get64BitArchVariant();
       if (Target.getEnvironment() == llvm::Triple::GNU)
         Target.setEnvironment(llvm::Triple::GNUABI64);

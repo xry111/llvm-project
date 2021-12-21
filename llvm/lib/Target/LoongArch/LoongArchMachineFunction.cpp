@@ -25,7 +25,7 @@ void LoongArchFunctionInfo::createEhDataRegsFI() {
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
   for (int I = 0; I < 4; ++I) {
     const TargetRegisterClass &RC =
-        static_cast<const LoongArchTargetMachine &>(MF.getTarget()).getABI().IsLP64()
+        static_cast<const LoongArchTargetMachine &>(MF.getTarget()).getABI().IsLP64D()
             ? LoongArch::GPR64RegClass
             : LoongArch::GPR32RegClass;
 

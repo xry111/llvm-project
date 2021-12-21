@@ -41,7 +41,7 @@ public:
     FpABI = FpABIKind::ANY;
     if (P.useSoftFloat())
       FpABI = FpABIKind::SOFT;
-    else if (P.isABI_LPX32() || P.isABI_LP64())
+    else if (P.isABI_LPX32() || P.isABI_LP64D())
       FpABI = FpABIKind::S64;
     else if (P.isABI_LP32()) {
       if (P.isFP64bit())

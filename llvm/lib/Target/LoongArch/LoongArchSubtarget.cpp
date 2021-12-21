@@ -49,7 +49,7 @@ LoongArchSubtarget::LoongArchSubtarget(const Triple &TT, StringRef CPU,
 
   // Check if Architecture and ABI are compatible.
   assert(((!is64Bit() && isABI_LP32()) ||
-          (is64Bit() && (isABI_LPX32() || isABI_LP64()))) &&
+          (is64Bit() && (isABI_LPX32() || isABI_LP64D()))) &&
          "Invalid  Arch & ABI pair.");
 
   assert(isFP64bit());
@@ -86,7 +86,7 @@ LoongArchSubtarget::initializeSubtargetDependencies(StringRef CPU,
 
   if (StackAlignOverride)
     stackAlignment = *StackAlignOverride;
-  else if (isABI_LPX32() || isABI_LP64())
+  else if (isABI_LPX32() || isABI_LP64D())
     stackAlignment = Align(16);
   else {
     assert(isABI_LP32() && "Unknown ABI for stack alignment!");
@@ -100,7 +100,7 @@ Reloc::Model LoongArchSubtarget::getRelocationModel() const {
   return TM.getRelocationModel();
 }
 
-bool LoongArchSubtarget::isABI_LP64() const { return getABI().IsLP64(); }
+bool LoongArchSubtarget::isABI_LP64D() const { return getABI().IsLP64D(); }
 bool LoongArchSubtarget::isABI_LPX32() const { return getABI().IsLPX32(); }
 bool LoongArchSubtarget::isABI_LP32() const { return getABI().IsLP32(); }
 const LoongArchABIInfo &LoongArchSubtarget::getABI() const { return TM.getABI(); }

@@ -321,9 +321,9 @@ unsigned LoongArchInstrInfo::loadImmediate(int64_t Imm, MachineBasicBlock &MBB,
   LoongArchAnalyzeImmediate AnalyzeImm;
   const LoongArchSubtarget &STI = Subtarget;
   MachineRegisterInfo &RegInfo = MBB.getParent()->getRegInfo();
-  unsigned Size = STI.isABI_LP64() ? 64 : 32;
-  unsigned ZEROReg = STI.isABI_LP64() ? LoongArch::ZERO_64 : LoongArch::ZERO;
-  const TargetRegisterClass *RC = STI.isABI_LP64() ?
+  unsigned Size = STI.isABI_LP64D() ? 64 : 32;
+  unsigned ZEROReg = STI.isABI_LP64D() ? LoongArch::ZERO_64 : LoongArch::ZERO;
+  const TargetRegisterClass *RC = STI.isABI_LP64D() ?
     &LoongArch::GPR64RegClass : &LoongArch::GPR32RegClass;
   bool LastInstrIsADDI = NewImm;
 
@@ -584,7 +584,7 @@ unsigned LoongArchInstrInfo::insertIndirectBranch(MachineBasicBlock &MBB,
   MachineFunction *MF = MBB.getParent();
   MachineRegisterInfo &MRI = MF->getRegInfo();
   const LoongArchSubtarget &Subtarget = MF->getSubtarget<LoongArchSubtarget>();
-  bool is64 = Subtarget.isABI_LP64();
+  bool is64 = Subtarget.isABI_LP64D();
   const TargetRegisterClass *RC =
     is64 ? &LoongArch::GPR64RegClass : &LoongArch::GPR32RegClass;
 

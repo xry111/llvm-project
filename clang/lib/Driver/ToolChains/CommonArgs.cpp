@@ -1322,8 +1322,8 @@ tools::ParsePICArgs(const ToolChain &ToolChain, const ArgList &Args) {
     StringRef CPUName;
     StringRef ABIName;
     loongarch::getLoongArchCPUAndABI(Args, Triple, CPUName, ABIName);
-    // When targeting the LP64 ABI, PIC is the default.
-    if (ABIName == "lp64")
+    // When targeting the LP64D ABI, PIC is the default.
+    if (ABIName == "lp64d")
       PIC = true;
     // Unlike other architectures, LoongArch, even with -fPIC/-mxgot/multigot,
     // does not use PIC level 2 for historical reasons.

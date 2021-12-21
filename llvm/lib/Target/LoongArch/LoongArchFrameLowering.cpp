@@ -123,8 +123,8 @@ void LoongArchFrameLowering::emitPrologue(MachineFunction &MF,
   unsigned ZERO = ABI.GetNullPtr();
   unsigned MOVE = ABI.GetGPRMoveOp();
   unsigned ADDI = ABI.GetPtrAddiOp();
-  unsigned AND = ABI.IsLP64() ? LoongArch::AND : LoongArch::AND32;
-  unsigned SLLI = ABI.IsLP64() ? LoongArch::SLLI_D : LoongArch::SLLI_W;
+  unsigned AND = ABI.IsLP64D() ? LoongArch::AND : LoongArch::AND32;
+  unsigned SLLI = ABI.IsLP64D() ? LoongArch::SLLI_D : LoongArch::SLLI_W;
 
   const TargetRegisterClass *RC = ABI.ArePtrs64bit() ?
         &LoongArch::GPR64RegClass : &LoongArch::GPR32RegClass;
@@ -239,7 +239,7 @@ void LoongArchFrameLowering::emitPrologue(MachineFunction &MF,
 
       if (hasBP(MF)) {
         // move $s7, $sp
-        unsigned BP = STI.isABI_LP64() ? LoongArch::S7_64 : LoongArch::S7;
+        unsigned BP = STI.isABI_LP64D() ? LoongArch::S7_64 : LoongArch::S7;
         BuildMI(MBB, MBBI, dl, TII.get(MOVE), BP)
           .addReg(SP)
           .addReg(ZERO);
@@ -376,7 +376,7 @@ void LoongArchFrameLowering::determineCalleeSaves(MachineFunction &MF,
   LoongArchFunctionInfo *LoongArchFI = MF.getInfo<LoongArchFunctionInfo>();
   LoongArchABIInfo ABI = STI.getABI();
   unsigned FP = ABI.GetFramePtr();
-  unsigned BP = ABI.IsLP64() ? LoongArch::S7_64 : LoongArch::S7;
+  unsigned BP = ABI.IsLP64D() ? LoongArch::S7_64 : LoongArch::S7;
 
   // Mark $fp as used if function has dedicated frame pointer.
   if (hasFP(MF))
@@ -457,7 +457,7 @@ estimateStackSize(const MachineFunction &MF) const {
 MachineBasicBlock::iterator LoongArchFrameLowering::
 eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator I) const {
-  unsigned SP = STI.getABI().IsLP64() ? LoongArch::SP_64 : LoongArch::SP;
+  unsigned SP = STI.getABI().IsLP64D() ? LoongArch::SP_64 : LoongArch::SP;
 
   if (!hasReservedCallFrame(MF)) {
     int64_t Amount = I->getOperand(0).getImm();

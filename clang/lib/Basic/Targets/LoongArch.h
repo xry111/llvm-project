@@ -30,7 +30,7 @@ class LLVM_LIBRARY_VISIBILITY LoongArchTargetInfo : public TargetInfo {
       Layout = "m:m-p:32:32-i8:8:32-i16:16:32-i64:64-n32-S64";
     else if (ABI == "lpx32")
       Layout = "m:e-p:32:32-i8:8:32-i16:16:32-i64:64-n32:64-S128";
-    else if (ABI == "lp64")
+    else if (ABI == "lp64d")
       Layout = "m:e-i8:8:32-i16:16:32-i64:64-n32:64-S128";
     else
       llvm_unreachable("Invalid ABI");
@@ -58,10 +58,10 @@ public:
     if (Triple.isLoongArch32())
       setABI("lp32");
     else
-      setABI("lp64");
+      setABI("lp64d");
 
     // Currently, CPU only supports 'la464' in LA.
-    if ( ABI == "lp64")
+    if ( ABI == "lp64d")
       CPU = "la464";
   }
 
@@ -83,7 +83,7 @@ public:
       //TODO: implement
       return false;
     }
-    if (Name == "lp64") {
+    if (Name == "lp64d") {
       setLP64ABITypes();
       ABI = Name;
       return true;
@@ -372,7 +372,7 @@ public:
   }
 
   bool hasInt128Type() const override {
-    return (ABI == "lpx32" || ABI == "lp64") || getTargetOpts().ForceEnableInt128;
+    return (ABI == "lpx32" || ABI == "lp64d") || getTargetOpts().ForceEnableInt128;
   }
 
   bool validateTarget(DiagnosticsEngine &Diags) const override;

@@ -276,7 +276,7 @@ public:
 
   const LoongArchABIInfo &getABI() const { return ABI; }
   bool isABI_LPX32() const { return ABI.IsLPX32(); }
-  bool isABI_LP64() const { return ABI.IsLP64(); }
+  bool isABI_LP64D() const { return ABI.IsLP64D(); }
   bool isABI_LP32() const { return ABI.IsLP32(); }
 
   bool inPicMode() {

@@ -197,7 +197,7 @@ def RetCC_LoongArchLP64LPX32 : CallingConv<[
   // pre-analyze (see PreAnalyzeReturnForF128()) step to pass information on
   // whether the result was originally an f128 into the tablegen-erated code.
   //
-  // f128 should only occur for the LP64 ABI where long double is 128-bit. On
+  // f128 should only occur for the LP64D ABI where long double is 128-bit. On
   // LPX32, long double is equivalent to double.
   CCIfType<[i64], CCIfOrigArgWasF128<CCDelegateTo<RetCC_F128>>>,
 
@@ -259,7 +259,7 @@ def CC_LoongArch_FastCC : CallingConv<[
 
 def RetCC_LoongArch : CallingConv<[
   CCIfSubtarget<"isABI_LPX32()", CCDelegateTo<RetCC_LoongArchLP64LPX32>>,
-  CCIfSubtarget<"isABI_LP64()", CCDelegateTo<RetCC_LoongArchLP64LPX32>>,
+  CCIfSubtarget<"isABI_LP64D()", CCDelegateTo<RetCC_LoongArchLP64LPX32>>,
   CCDelegateTo<RetCC_LoongArchLP32>
 ]>;
 
@@ -281,7 +281,7 @@ def CC_LoongArch_FixedArg : CallingConv<[
   // pre-analyze (see PreAnalyzeFormalArgsForF128()) step to pass information on
   // whether the argument was originally an f128 into the tablegen-erated code.
   //
-  // f128 should only occur for the LP64 ABI where long double is 128-bit. On
+  // f128 should only occur for the LP64D ABI where long double is 128-bit. On
   // LPX32, long double is equivalent to double.
   CCIfType<[i64],
       CCIfSubtargetNot<"useSoftFloat()",

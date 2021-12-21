@@ -37,7 +37,7 @@ void loongarch::getLoongArchCPUAndABI(const ArgList &Args, const llvm::Triple &T
     // accepted by LLVM LoongArch backend.
     ABIName = llvm::StringSwitch<llvm::StringRef>(ABIName)
                   .Case("32", "lp32")
-                  .Case("64", "lp64")
+                  .Case("64", "lp64d")
                   .Default(ABIName);
   }
 
@@ -58,20 +58,20 @@ void loongarch::getLoongArchCPUAndABI(const ArgList &Args, const llvm::Triple &T
   if (ABIName.empty()) {
     ABIName = llvm::StringSwitch<const char *>(CPUName)
                   .Case("loongarch32", "lp32")
-                  .Case("la464", "lp64")
+                  .Case("la464", "lp64d")
                   .Default("");
   }
 
   if (ABIName.empty()) {
     // Deduce ABI name from the target triple.
-    ABIName = Triple.isLoongArch32() ? "lp32" : "lp64";
+    ABIName = Triple.isLoongArch32() ? "lp32" : "lp64d";
   }
 
   if (CPUName.empty()) {
     // Deduce CPU name from ABI name.
     CPUName = llvm::StringSwitch<const char *>(ABIName)
                   .Case("lp32", DefLoongArch32CPU)
-                  .Cases("lpx32", "lp64", DefLoongArch64CPU)
+                  .Cases("lpx32", "lp64d", DefLoongArch64CPU)
                   .Default("");
   }
 
@@ -85,14 +85,14 @@ std::string loongarch::getLoongArchABILibSuffix(const ArgList &Args,
   return llvm::StringSwitch<std::string>(ABIName)
       .Case("lp32", "")
       .Case("lpx32", "32")
-      .Case("lp64", "64");
+      .Case("lp64d", "64");
 }
 
 // Convert ABI name to the GNU tools acceptable variant.
 StringRef loongarch::getGnuCompatibleLoongArchABIName(StringRef ABI) {
   return llvm::StringSwitch<llvm::StringRef>(ABI)
       .Case("lp32", "32")
-      .Case("lp64", "64")
+      .Case("lp64d", "64")
       .Default(ABI);
 }
 
@@ -143,7 +143,7 @@ void loongarch::getLoongArchTargetFeatures(const Driver &D, const llvm::Triple &
   // added to the binary which contains the stub functions to perform
   // any fixups required for PIC code.
 
-  bool IsLP64 = ABIName == "64";
+  bool IsLP64D = ABIName == "64";
   bool NonPIC = false;
 
   Arg *LastPICArg = Args.getLastArg(options::OPT_fPIC, options::OPT_fno_PIC,
@@ -157,7 +157,7 @@ void loongarch::getLoongArchTargetFeatures(const Driver &D, const llvm::Triple &
          O.matches(options::OPT_fno_PIE) || O.matches(options::OPT_fno_pie));
   }
 
-  if (IsLP64 && NonPIC) {
+  if (IsLP64D && NonPIC) {
     NonPIC = false;
   }
 

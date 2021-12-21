@@ -23,7 +23,7 @@ class TargetRegisterClass;
 
 class LoongArchABIInfo {
 public:
-  enum class ABI { Unknown, LP32, LPX32, LP64 };
+  enum class ABI { Unknown, LP32, LPX32, LP64D };
 
 protected:
   ABI ThisABI;
@@ -34,14 +34,14 @@ public:
   static LoongArchABIInfo Unknown() { return LoongArchABIInfo(ABI::Unknown); }
   static LoongArchABIInfo LP32() { return LoongArchABIInfo(ABI::LP32); }
   static LoongArchABIInfo LPX32() { return LoongArchABIInfo(ABI::LPX32); }
-  static LoongArchABIInfo LP64() { return LoongArchABIInfo(ABI::LP64); }
+  static LoongArchABIInfo LP64D() { return LoongArchABIInfo(ABI::LP64D); }
   static LoongArchABIInfo computeTargetABI(const Triple &TT, StringRef CPU,
                                       const MCTargetOptions &Options);
 
   bool IsKnown() const { return ThisABI != ABI::Unknown; }
   bool IsLP32() const { return ThisABI == ABI::LP32; }
   bool IsLPX32() const { return ThisABI == ABI::LPX32; }
-  bool IsLP64() const { return ThisABI == ABI::LP64; }
+  bool IsLP64D() const { return ThisABI == ABI::LP64D; }
   ABI GetEnumValue() const { return ThisABI; }
 
   /// The registers to use for byval arguments.
@@ -71,8 +71,8 @@ public:
   unsigned GetPtrSubOp() const;
   unsigned GetPtrAndOp() const;
   unsigned GetGPRMoveOp() const;
-  inline bool ArePtrs64bit() const { return IsLP64(); }
-  inline bool AreGprs64bit() const { return IsLPX32() || IsLP64(); }
+  inline bool ArePtrs64bit() const { return IsLP64D(); }
+  inline bool AreGprs64bit() const { return IsLPX32() || IsLP64D(); }
 
   unsigned GetEhDataReg(unsigned I) const;
 };

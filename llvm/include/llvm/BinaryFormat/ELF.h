@@ -680,7 +680,7 @@ enum : unsigned {
   EF_LARCH_ABI = 0x0003,
   EF_LARCH_ABI_LP32 = 0x0001,
   EF_LARCH_ABI_XLP32 = 0x0002,
-  EF_LARCH_ABI_LP64 = 0x0003,
+  EF_LARCH_ABI_LP64D = 0x0003,
 };
 
 // ELF Relocation types for LoongArch

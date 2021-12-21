@@ -282,7 +282,7 @@ LoongArchTargetELFStreamer::LoongArchTargetELFStreamer(MCStreamer &S,
   ABI = LoongArchABIInfo(
       STI.getTargetTriple().getArch() == Triple::ArchType::loongarch32
           ? LoongArchABIInfo::LP32()
-          : LoongArchABIInfo::LP64());
+          : LoongArchABIInfo::LP64D());
 
   EFlags |= ELF::EF_LARCH_ABI;
   MCA.setELFHeaderEFlags(EFlags);
@@ -338,13 +338,13 @@ void LoongArchTargetELFStreamer::finish() {
   unsigned EFlags = MCA.getELFHeaderEFlags();
 
   // ABI
-  // LP64 does not require any ABI bits.
+  // LP64D does not require any ABI bits.
   if (getABI().IsLP32())
     EFlags |= ELF::EF_LARCH_ABI_LP32;
   else if (getABI().IsLPX32())
     EFlags |= ELF::EF_LARCH_ABI_XLP32;
   else
-    EFlags |= ELF::EF_LARCH_ABI_LP64;
+    EFlags |= ELF::EF_LARCH_ABI_LP64D;
 
   MCA.setELFHeaderEFlags(EFlags);
 }
