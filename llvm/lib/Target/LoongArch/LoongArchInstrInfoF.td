@@ -302,8 +302,7 @@ def MOVFR2GR_D  : Float_MOVF<"movfr2gr.d", GPR64Opnd, FGR64Opnd, bitconvert>, MO
 def MOVFRH2GR_S : Float_MOVF<"movfrh2gr.s", GPR32Opnd, FGR32Opnd>, MOVIF<0b0100101111>; //not realize
 
 let isCodeGenOnly = 1 in {
-  def MOVGR2FR_DW : Float_MOVT<"movgr2fr.w", FGR64Opnd, GPR32Opnd>, MOVFI<0b0100101001>;
-  def MOVFR2GR_WD : Float_MOVF<"movfr2gr.s", GPR32Opnd, FGR64Opnd>, MOVIF<0b0100101101>;
+  def MOVFR2GR_DS : Float_MOVF<"movfr2gr.s", GPR64Opnd, FGR32Opnd>, MOVIF<0b0100101101>;
 }
 
 def FCVT_S_D : Float_CVT<"fcvt.s.d", FGR32Opnd, FGR64Opnd>, R2F<0b1001000110>;
@@ -469,10 +468,10 @@ def FLDGT_S : Float_Int_Reg3<"fldgt.s", FGR32Opnd, GPR64Opnd>, R3MF<0b11101000>;
 def FLDGT_D : Float_Int_Reg3<"fldgt.d", FGR64Opnd, GPR64Opnd>, R3MF<0b11101001>;
 def FLDLE_S : Float_Int_Reg3<"fldle.s", FGR32Opnd, GPR64Opnd>, R3MF<0b11101010>;
 def FLDLE_D : Float_Int_Reg3<"fldle.d", FGR64Opnd, GPR64Opnd>, R3MF<0b11101011>;
-def FSTGT_S : Float_Int_Reg3<"fstgt.s", FGR32Opnd, GPR64Opnd>, R3MF<0b11101100>;
-def FSTGT_D : Float_Int_Reg3<"fstgt.d", FGR64Opnd, GPR64Opnd>, R3MF<0b11101101>;
-def FSTLE_S : Float_Int_Reg3<"fstle.s", FGR32Opnd, GPR64Opnd>, R3MF<0b11101110>;
-def FSTLE_D : Float_Int_Reg3<"fstle.d", FGR64Opnd, GPR64Opnd>, R3MF<0b11101111>;
+def FSTGT_S : Float_STGT_LE<"fstgt.s", FGR32Opnd, GPR64Opnd>, R3MF<0b11101100>;
+def FSTGT_D : Float_STGT_LE<"fstgt.d", FGR64Opnd, GPR64Opnd>, R3MF<0b11101101>;
+def FSTLE_S : Float_STGT_LE<"fstle.s", FGR32Opnd, GPR64Opnd>, R3MF<0b11101110>;
+def FSTLE_D : Float_STGT_LE<"fstle.d", FGR64Opnd, GPR64Opnd>, R3MF<0b11101111>;
 
 let isPseudo = 1, isCodeGenOnly = 1 in {
   def PseudoFFINT_S_W : Float_CVT<"", FGR32Opnd, GPR32Opnd>;
@@ -625,3 +624,6 @@ def : LoongArchPat<(LoongArchTruncIntFP FGR32Opnd:$src),
 
 def : Pat<(fcanonicalize FGR32Opnd:$src), (FMAX_S $src, $src)>;
 def : Pat<(fcanonicalize FGR64Opnd:$src), (FMAX_D $src, $src)>;
+
+def : LoongArchPat<(i64 (sext (i32 (bitconvert FGR32Opnd:$src)))),
+                   (MOVFR2GR_DS FGR32Opnd:$src)>;

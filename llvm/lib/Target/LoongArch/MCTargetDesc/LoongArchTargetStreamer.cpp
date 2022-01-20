@@ -46,20 +46,6 @@ void LoongArchTargetStreamer::emitDirectiveSetArch(StringRef Arch) {
 }
 void LoongArchTargetStreamer::emitDirectiveSetLoongArch32() { forbidModuleDirective(); }
 void LoongArchTargetStreamer::emitDirectiveSetloongarch64() { forbidModuleDirective(); }
-void LoongArchTargetStreamer::emitDirectiveSetSoftFloat() {
-  forbidModuleDirective();
-}
-void LoongArchTargetStreamer::emitDirectiveSetHardFloat() {
-  forbidModuleDirective();
-}
-void LoongArchTargetStreamer::emitDirectiveModuleFP() {}
-
-void LoongArchTargetStreamer::emitDirectiveModuleSoftFloat() {}
-void LoongArchTargetStreamer::emitDirectiveModuleHardFloat() {}
-void LoongArchTargetStreamer::emitDirectiveSetFp(
-    LoongArchFPABIInfo::FpABIKind Value) {
-  forbidModuleDirective();
-}
 
 void LoongArchTargetStreamer::emitR(unsigned Opcode, unsigned Reg0, SMLoc IDLoc,
                                const MCSubtargetInfo *STI) {
@@ -210,40 +196,6 @@ void LoongArchTargetAsmStreamer::emitDirectiveSetLoongArch32() {
 void LoongArchTargetAsmStreamer::emitDirectiveSetloongarch64() {
   //OS << "\t.set\tloongarch64\n";
   LoongArchTargetStreamer::emitDirectiveSetloongarch64();
-}
-
-void LoongArchTargetAsmStreamer::emitDirectiveSetSoftFloat() {
-  OS << "\t.set\tsoftfloat\n";
-  LoongArchTargetStreamer::emitDirectiveSetSoftFloat();
-}
-
-void LoongArchTargetAsmStreamer::emitDirectiveSetHardFloat() {
-  OS << "\t.set\thardfloat\n";
-  LoongArchTargetStreamer::emitDirectiveSetHardFloat();
-}
-
-void LoongArchTargetAsmStreamer::emitDirectiveModuleFP() {
-  LoongArchFPABIInfo::FpABIKind FpABI = FPABIInfo.getFpABI();
-  if (FpABI == LoongArchFPABIInfo::FpABIKind::SOFT)
-    OS << "\t.module\tsoftfloat\n";
-  else
-    OS << "\t.module\tfp=" << FPABIInfo.getFpABIString(FpABI) << "\n";
-}
-
-void LoongArchTargetAsmStreamer::emitDirectiveSetFp(
-    LoongArchFPABIInfo::FpABIKind Value) {
-  LoongArchTargetStreamer::emitDirectiveSetFp(Value);
-
-  OS << "\t.set\tfp=";
-  OS << FPABIInfo.getFpABIString(Value) << "\n";
-}
-
-void LoongArchTargetAsmStreamer::emitDirectiveModuleSoftFloat() {
-  OS << "\t.module\tsoftfloat\n";
-}
-
-void LoongArchTargetAsmStreamer::emitDirectiveModuleHardFloat() {
-  OS << "\t.module\thardfloat\n";
 }
 
 // This part is for ELF object output.

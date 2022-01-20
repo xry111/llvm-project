@@ -281,9 +281,9 @@ bool LoongArchAsmPrinter::PrintAsmOperand(const MachineInstr *MI,
       O << Log2_64(MO.getImm());
       return false;
     case 'z':
-      // $0 if zero, regular printing otherwise
+      // $r0 if zero, regular printing otherwise
       if (MO.getType() == MachineOperand::MO_Immediate && MO.getImm() == 0) {
-        O << "$0";
+        O << "$r0";
         return false;
       }
       // If not, call printOperand as normal.
@@ -470,13 +470,6 @@ void LoongArchAsmPrinter::emitStartOfAsmFile(Module &M) {
   // TODO: handle O64 ABI
 
   TS.updateABIInfo(STI);
-
-  // We should always emit a '.module fp=...' but binutils 2.31 does not accept
-  // it. We therefore emit it when it contradicts the ABI defaults (-mfp64)
-  // and omit it otherwise.
-  if ((ABI.IsLP32() && (STI.isFP64bit())) ||
-      STI.useSoftFloat())
-    TS.emitDirectiveModuleFP();
 }
 
 void LoongArchAsmPrinter::emitInlineAsmStart() const {

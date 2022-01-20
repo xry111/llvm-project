@@ -10,7 +10,6 @@
 #ifndef LLVM_LIB_TARGET_LOONGARCH_LOONGARCHTARGETSTREAMER_H
 #define LLVM_LIB_TARGET_LOONGARCH_LOONGARCHTARGETSTREAMER_H
 
-#include "MCTargetDesc/LoongArchFPABIInfo.h"
 #include "MCTargetDesc/LoongArchABIInfo.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
@@ -36,13 +35,6 @@ public:
   virtual void emitDirectiveSetArch(StringRef Arch);
   virtual void emitDirectiveSetLoongArch32();
   virtual void emitDirectiveSetloongarch64();
-  virtual void emitDirectiveSetSoftFloat();
-  virtual void emitDirectiveSetHardFloat();
-
-  virtual void emitDirectiveModuleFP();
-  virtual void emitDirectiveModuleSoftFloat();
-  virtual void emitDirectiveModuleHardFloat();
-  virtual void emitDirectiveSetFp(LoongArchFPABIInfo::FpABIKind Value);
 
   void emitR(unsigned Opcode, unsigned Reg0, SMLoc IDLoc,
              const MCSubtargetInfo *STI);
@@ -80,10 +72,8 @@ public:
   template <class PredicateLibrary>
   void updateABIInfo(const PredicateLibrary &P) {
     ABI = P.getABI();
-    FPABIInfo.setAllFromPredicates(P);
   }
 
-  LoongArchFPABIInfo &getFPABIInfo() { return FPABIInfo; }
   const LoongArchABIInfo &getABI() const {
     assert(ABI.hasValue() && "ABI hasn't been set!");
     return *ABI;
@@ -91,7 +81,6 @@ public:
 
 protected:
   llvm::Optional<LoongArchABIInfo> ABI;
-  LoongArchFPABIInfo FPABIInfo;
 
   bool GPRInfoSet;
 
@@ -119,14 +108,6 @@ public:
   void emitDirectiveSetArch(StringRef Arch) override;
   void emitDirectiveSetLoongArch32() override;
   void emitDirectiveSetloongarch64() override;
-  void emitDirectiveSetSoftFloat() override;
-  void emitDirectiveSetHardFloat() override;
-
-  // FP abiflags directives
-  void emitDirectiveModuleFP() override;
-  void emitDirectiveModuleSoftFloat() override;
-  void emitDirectiveModuleHardFloat() override;
-  void emitDirectiveSetFp(LoongArchFPABIInfo::FpABIKind Value) override;
 };
 
 // This part is for ELF object output

@@ -404,7 +404,9 @@ static DecodeStatus DecodeJumpTarget(MCInst &Inst,
                                      unsigned Insn,
                                      uint64_t Address,
                                      const void *Decoder) {
-  unsigned JumpOffset = fieldFromInstruction(Insn, 0, 26) << 2;
+  unsigned hi10 = fieldFromInstruction(Insn, 0, 10);
+  unsigned lo16 = fieldFromInstruction(Insn, 10, 16);
+  int32_t JumpOffset = SignExtend32<28>((hi10 << 16 | lo16) << 2);
   Inst.addOperand(MCOperand::createImm(JumpOffset));
   return MCDisassembler::Success;
 }

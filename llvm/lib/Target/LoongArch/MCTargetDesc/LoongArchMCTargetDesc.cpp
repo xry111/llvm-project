@@ -131,16 +131,11 @@ public:
     unsigned NumOps = Inst.getNumOperands();
     if (NumOps == 0)
       return false;
-    switch (Info->get(Inst.getOpcode()).OpInfo[NumOps - 1].OperandType) {
-    case MCOI::OPERAND_UNKNOWN:
-    case MCOI::OPERAND_IMMEDIATE:
-      Target = Inst.getOperand(NumOps - 1).getImm();
-      return true;
-    case MCOI::OPERAND_PCREL:
-      // b, beq ...
+    if (Info->get(Inst.getOpcode()).isBranch() || Inst.getOpcode() == LoongArch::BL) {
+      // just not jirl
       Target = Addr + Inst.getOperand(NumOps - 1).getImm();
       return true;
-    default:
+    } else {
       return false;
     }
   }

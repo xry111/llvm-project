@@ -8,8 +8,8 @@ int printf(const char*, ...);
 typedef long long v2i64 __attribute__ ((vector_size(16), aligned(16)));
 typedef long long v4i64 __attribute__ ((vector_size(32), aligned(32)));
 
-  // CHECK: %{{[0-9]+}} = call i32 asm ".set noreorder;\0Ald.w    $0,$1;\0A.set reorder;\0A", "=r,*m"(i32* getelementptr inbounds ([8 x i32], [8 x i32]* @b, i32 {{[0-9]+}}, i64 {{[0-9]+}})) #2,
-  // CHECK: %{{[0-9]+}} = call i32 asm "ld.w    $0,${1:D};\0A", "=r,*m"(i32* getelementptr inbounds ([8 x i32], [8 x i32]* @b, i32 {{[0-9]+}}, i64 {{[0-9]+}})) #2,
+  // CHECK: %{{[0-9]+}} = call i32 asm ".set noreorder;\0Ald.w    $0,$1;\0A.set reorder;\0A", "=r,*m"(i32* getelementptr inbounds ([8 x i32], [8 x i32]* @b, i64 {{[0-9]+}}, i64 {{[0-9]+}})) #2,
+  // CHECK: %{{[0-9]+}} = call i32 asm "ld.w    $0,${1:D};\0A", "=r,*m"(i32* getelementptr inbounds ([8 x i32], [8 x i32]* @b, i64 {{[0-9]+}}, i64 {{[0-9]+}})) #2,
 int b[8] = {0,1,2,3,4,5,6,7};
 int  main()
 {

@@ -28,6 +28,7 @@
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/MCValue.h"
+#include "llvm/Support/EndianStream.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/MathExtras.h"
@@ -185,7 +186,7 @@ bool LoongArchAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count) const {
 
   // The nop on LoongArch is andi r0, r0, 0.
   for (; Count >= 4; Count -= 4)
-    OS.write("\x03\x40\0\0", 4);
+    support::endian::write<uint32_t>(OS, 0x03400000, support::little);
 
   return true;
 }

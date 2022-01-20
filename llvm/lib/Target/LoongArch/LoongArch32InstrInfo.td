@@ -215,15 +215,15 @@ let usesCustomInserter = 1 in {
                    R3MI<0b01001000>;
     def LDX_BU32 : LDX_FT_LA<"ldx.bu", GPR32Opnd, extloadi8>,
                    R3MI<0b01000000>;
-    def STX_W32 : SDX_FT_LA<"stx.w", GPR32Opnd, store>,
+    def STX_W32 : STX_FT_LA<"stx.w", GPR32Opnd, store>,
                   R3MI<0b00110000>;
     def LDX_H32 : LDX_FT_LA<"ldx.h", GPR32Opnd, sextloadi16>,
                   R3MI<0b00001000>;
     def LDX_B32 : LDX_FT_LA<"ldx.b", GPR32Opnd, sextloadi8>,
                   R3MI<0b00000000>;
-    def STX_B32 : SDX_FT_LA<"stx.b", GPR32Opnd, truncstorei8>,
+    def STX_B32 : STX_FT_LA<"stx.b", GPR32Opnd, truncstorei8>,
                   R3MI<0b00100000>;
-    def STX_H32 : SDX_FT_LA<"stx.h", GPR32Opnd, truncstorei16>,
+    def STX_H32 : STX_FT_LA<"stx.h", GPR32Opnd, truncstorei16>,
                   R3MI<0b00101000>;
   }
 }

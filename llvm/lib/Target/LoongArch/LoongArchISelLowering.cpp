@@ -3863,3 +3863,26 @@ bool LoongArchTargetLowering::isFMAFasterThanFMulAndFAdd(
 
   return false;
 }
+
+Register
+LoongArchTargetLowering::getRegisterByName(const char *RegName, LLT VT,
+                                           const MachineFunction &MF) const {
+  // Named registers is expected to be fairly rare. For now, just support $r2
+  // and $r21 since the linux kernel uses them.
+  if (Subtarget.is64Bit()) {
+    Register Reg = StringSwitch<unsigned>(RegName)
+                       .Case("$r2", LoongArch::TP_64)
+                       .Case("$r21", LoongArch::T9_64)
+                       .Default(Register());
+    if (Reg)
+      return Reg;
+  } else {
+    Register Reg = StringSwitch<unsigned>(RegName)
+                       .Case("$r2", LoongArch::TP)
+                       .Case("$r21", LoongArch::T9)
+                       .Default(Register());
+    if (Reg)
+      return Reg;
+  }
+  report_fatal_error("Invalid register name global variable");
+}

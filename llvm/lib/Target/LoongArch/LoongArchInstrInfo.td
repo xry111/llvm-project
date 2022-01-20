@@ -245,7 +245,7 @@ def uimm8_64 : Operand<i64>, ImmLeaf<i64, [{ return Imm >= 0 && Imm < 256; }]> {
 
 // Transformation Function - get the higher 20 bits.
 def HI20 : SDNodeXForm<imm, [{
-  return getImm(N, (N->getZExtValue() >> 12) & 0xFFFFF);
+  return getImm(N, SignExtend64<20>((N->getZExtValue() >> 12) & 0xFFFFF));
 }]>;
 
 // Transformation Function - get the lower 12 bits.
@@ -1174,6 +1174,18 @@ class SCBase<string opstr, RegisterOperand RO, DAGOperand MO = mem> :
   let Constraints = "$rd = $dst";
 }
 
+class STGT_LE<string opstr, RegisterOperand RO,
+                 SDPatternOperator OpNode = null_frag> :
+  InstForm<(outs), (ins RO:$rd, RO:$rj, RO:$rk),
+           !strconcat(opstr, "\t$rd, $rj, $rk"),
+           [], FrmI, opstr>;
+
+class Float_STGT_LE<string opstr, RegisterOperand RD, RegisterOperand RS,
+                      SDPatternOperator OpNode= null_frag>
+    : InstForm<(outs), (ins RD:$fd, RS:$rj, RS:$rk),
+          !strconcat(opstr, "\t$fd, $rj, $rk"),
+          [], FrmR, opstr>;
+
 def LL_D : LLBase<"ll.d", GPR64Opnd, mem_simm14_lsl2>, LL_SC<0b010>;
 def SC_D : SCBase<"sc.d", GPR64Opnd, mem_simm14_lsl2>, LL_SC<0b011>;
 
@@ -1241,14 +1253,14 @@ def LDLE_B : Int_Reg3<"ldle.b", GPR64Opnd>, R3MI<0b11110100>;
 def LDLE_H : Int_Reg3<"ldle.h", GPR64Opnd>, R3MI<0b11110101>;
 def LDLE_W : Int_Reg3<"ldle.w", GPR64Opnd>, R3MI<0b11110110>;
 def LDLE_D : Int_Reg3<"ldle.d", GPR64Opnd>, R3MI<0b11110111>;
-def STGT_B : Int_Reg3<"stgt.b", GPR64Opnd>, R3MI<0b11111000>;
-def STGT_H : Int_Reg3<"stgt.h", GPR64Opnd>, R3MI<0b11111001>;
-def STGT_W : Int_Reg3<"stgt.w", GPR64Opnd>, R3MI<0b11111010>;
-def STGT_D : Int_Reg3<"stgt.d", GPR64Opnd>, R3MI<0b11111011>;
-def STLE_B : Int_Reg3<"stle.b", GPR64Opnd>, R3MI<0b11111100>;
-def STLE_H : Int_Reg3<"stle.h", GPR64Opnd>, R3MI<0b11111101>;
-def STLE_W : Int_Reg3<"stle.w", GPR64Opnd>, R3MI<0b11111110>;
-def STLE_D : Int_Reg3<"stle.d", GPR64Opnd>, R3MI<0b11111111>;
+def STGT_B : STGT_LE<"stgt.b", GPR64Opnd>, R3MI<0b11111000>;
+def STGT_H : STGT_LE<"stgt.h", GPR64Opnd>, R3MI<0b11111001>;
+def STGT_W : STGT_LE<"stgt.w", GPR64Opnd>, R3MI<0b11111010>;
+def STGT_D : STGT_LE<"stgt.d", GPR64Opnd>, R3MI<0b11111011>;
+def STLE_B : STGT_LE<"stle.b", GPR64Opnd>, R3MI<0b11111100>;
+def STLE_H : STGT_LE<"stle.h", GPR64Opnd>, R3MI<0b11111101>;
+def STLE_W : STGT_LE<"stle.w", GPR64Opnd>, R3MI<0b11111110>;
+def STLE_D : STGT_LE<"stle.d", GPR64Opnd>, R3MI<0b11111111>;
 
 let isCodeGenOnly = 1 in {
 def PRELD  : Preld<"preld", mem, GPR64Opnd>, PRELD_FM;
@@ -1492,8 +1504,8 @@ class LDX_FT_LA<string opstr, RegisterOperand DRC,
   let mayLoad = 1;
 }
 
-class SDX_FT_LA<string opstr, RegisterOperand DRC,
-                SDPatternOperator OpNode = null_frag> :
+class STX_FT_LA<string opstr, RegisterOperand DRC,
+                 SDPatternOperator OpNode = null_frag> :
   InstForm<(outs), (ins DRC:$rd, PtrRC:$rj, PtrRC:$rk),
            !strconcat(opstr, "\t$rd, $rj, $rk"),
            [(OpNode DRC:$rd, (add iPTR:$rj, iPTR:$rk))],
@@ -1512,13 +1524,13 @@ def LDX_W : LDX_FT_LA<"ldx.w", GPR64Opnd, sextloadi32>,
             R3MI<0b00010000>;
 def LDX_D : LDX_FT_LA<"ldx.d", GPR64Opnd, load>,
             R3MI<0b00011000>;
-def STX_B : SDX_FT_LA<"stx.b", GPR64Opnd, truncstorei8>,
+def STX_B : STX_FT_LA<"stx.b", GPR64Opnd, truncstorei8>,
             R3MI<0b00100000>;
-def STX_H : SDX_FT_LA<"stx.h", GPR64Opnd, truncstorei16>,
+def STX_H : STX_FT_LA<"stx.h", GPR64Opnd, truncstorei16>,
             R3MI<0b00101000>;
-def STX_W : SDX_FT_LA<"stx.w", GPR64Opnd, truncstorei32>,
+def STX_W : STX_FT_LA<"stx.w", GPR64Opnd, truncstorei32>,
             R3MI<0b00110000>;
-def STX_D : SDX_FT_LA<"stx.d", GPR64Opnd, store>,
+def STX_D : STX_FT_LA<"stx.d", GPR64Opnd, store>,
             R3MI<0b00111000>;
 def LDX_BU : LDX_FT_LA<"ldx.bu", GPR64Opnd, extloadi8>,
              R3MI<0b01000000>;

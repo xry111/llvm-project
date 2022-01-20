@@ -1,6 +1,5 @@
 add_llvm_component_library(LLVMLoongArchDesc
   LoongArchABIInfo.cpp
-  LoongArchFPABIInfo.cpp
   LoongArchAsmBackend.cpp
   LoongArchELFObjectWriter.cpp
   LoongArchELFStreamer.cpp

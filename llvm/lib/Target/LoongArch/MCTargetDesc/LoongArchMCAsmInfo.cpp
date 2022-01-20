@@ -25,7 +25,7 @@ LoongArchMCAsmInfo::LoongArchMCAsmInfo(const Triple &TheTriple,
     CodePointerSize = CalleeSaveStackSlotSize = 8;
 
   AlignmentIsInBytes          = false;
-  Data16bitsDirective         = "\t.harf\t";
+  Data16bitsDirective         = "\t.half\t";
   Data32bitsDirective         = "\t.word\t";
   Data64bitsDirective         = "\t.dword\t";
   CommentString               = "#";
@@ -35,4 +35,5 @@ LoongArchMCAsmInfo::LoongArchMCAsmInfo(const Triple &TheTriple,
   DwarfRegNumForCFI = true;
   //HasLoongArchExpressions = true;
   UseIntegratedAssembler = true;
+  UsesELFSectionDirectiveForBSS = true;
 }

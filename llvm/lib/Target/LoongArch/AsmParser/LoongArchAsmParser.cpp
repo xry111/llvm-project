@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/LoongArchFPABIInfo.h"
 #include "MCTargetDesc/LoongArchABIInfo.h"
 #include "MCTargetDesc/LoongArchBaseInfo.h"
 #include "MCTargetDesc/LoongArchMCExpr.h"
@@ -171,16 +170,7 @@ class LoongArchAsmParser : public MCTargetAsmParser {
   bool isEvaluated(const MCExpr *Expr);
   bool parseDirectiveSet();
 
-  bool parseSetFpDirective();
-  bool parseSetSoftFloatDirective();
-  bool parseSetHardFloatDirective();
-
   bool parseSetAssignment();
-
-  bool parseDirectiveModule();
-  bool parseDirectiveModuleFP();
-  bool parseFpABIValue(LoongArchFPABIInfo::FpABIKind &FpABI,
-                       StringRef Directive);
 
   bool parseInternalDirectiveReallowModule();
 
@@ -2015,54 +2005,6 @@ bool LoongArchAsmParser::reportParseError(Twine ErrorMsg) {
   return Error(Loc, ErrorMsg);
 }
 
-bool LoongArchAsmParser::parseSetFpDirective() {
-  MCAsmParser &Parser = getParser();
-  LoongArchFPABIInfo::FpABIKind FpAbiVal;
-  // Line can be: .set fp=32
-  //              .set fp=64
-  Parser.Lex(); // Eat fp token
-  AsmToken Tok = Parser.getTok();
-  if (Tok.isNot(AsmToken::Equal)) {
-    reportParseError("unexpected token, expected equals sign '='");
-    return false;
-  }
-  Parser.Lex(); // Eat '=' token.
-  Tok = Parser.getTok();
-
-  if (!parseFpABIValue(FpAbiVal, ".set"))
-    return false;
-
-  if (getLexer().isNot(AsmToken::EndOfStatement)) {
-    reportParseError("unexpected token, expected end of statement");
-    return false;
-  }
-  getTargetStreamer().emitDirectiveSetFp(FpAbiVal);
-  Parser.Lex(); // Consume the EndOfStatement.
-  return false;
-}
-
-bool LoongArchAsmParser::parseSetSoftFloatDirective() {
-  MCAsmParser &Parser = getParser();
-  Parser.Lex();
-  if (getLexer().isNot(AsmToken::EndOfStatement))
-    return reportParseError("unexpected token, expected end of statement");
-
-  setFeatureBits(LoongArch::FeatureSoftFloat, "soft-float");
-  getTargetStreamer().emitDirectiveSetSoftFloat();
-  return false;
-}
-
-bool LoongArchAsmParser::parseSetHardFloatDirective() {
-  MCAsmParser &Parser = getParser();
-  Parser.Lex();
-  if (getLexer().isNot(AsmToken::EndOfStatement))
-    return reportParseError("unexpected token, expected end of statement");
-
-  clearFeatureBits(LoongArch::FeatureSoftFloat, "soft-float");
-  getTargetStreamer().emitDirectiveSetHardFloat();
-  return false;
-}
-
 bool LoongArchAsmParser::parseSetAssignment() {
   StringRef Name;
   const MCExpr *Value;
@@ -2104,166 +2046,9 @@ bool LoongArchAsmParser::parseDirectiveSet() {
     getParser().Lex();
     return false;
   }
-  if (IdVal == "fp")
-    return parseSetFpDirective();
-  if (IdVal == "softfloat")
-    return parseSetSoftFloatDirective();
-  if (IdVal == "hardfloat")
-    return parseSetHardFloatDirective();
 
   // It is just an identifier, look for an assignment.
   return parseSetAssignment();
-}
-
-/// parseDirectiveModule
-///  ::= .module fp=value
-///  ::= .module softfloat
-///  ::= .module hardfloat
-bool LoongArchAsmParser::parseDirectiveModule() {
-  MCAsmParser &Parser = getParser();
-  MCAsmLexer &Lexer = getLexer();
-  SMLoc L = Lexer.getLoc();
-
-  if (!getTargetStreamer().isModuleDirectiveAllowed()) {
-    // TODO : get a better message.
-    reportParseError(".module directive must appear before any code");
-    return false;
-  }
-
-  StringRef Option;
-  if (Parser.parseIdentifier(Option)) {
-    reportParseError("expected .module option identifier");
-    return false;
-  }
-
-  if (Option == "fp") {
-    return parseDirectiveModuleFP();
-  } else if (Option == "softfloat") {
-    setModuleFeatureBits(LoongArch::FeatureSoftFloat, "soft-float");
-
-    // Synchronize the ABI Flags information with the FeatureBits information we
-    // updated above.
-    getTargetStreamer().updateABIInfo(*this);
-
-    // If printing assembly, use the recently updated ABI Flags information.
-    // If generating ELF, don't do anything.
-    getTargetStreamer().emitDirectiveModuleSoftFloat();
-
-    // If this is not the end of the statement, report an error.
-    if (getLexer().isNot(AsmToken::EndOfStatement)) {
-      reportParseError("unexpected token, expected end of statement");
-      return false;
-    }
-
-    return false; // parseDirectiveModule has finished successfully.
-  } else if (Option == "hardfloat") {
-    clearModuleFeatureBits(LoongArch::FeatureSoftFloat, "soft-float");
-
-    // Synchronize the ABI Flags information with the FeatureBits information we
-    // updated above.
-    getTargetStreamer().updateABIInfo(*this);
-
-    // If printing assembly, use the recently updated ABI Flags information.
-    // If generating ELF, don't do anything.
-    getTargetStreamer().emitDirectiveModuleHardFloat();
-
-    // If this is not the end of the statement, report an error.
-    if (getLexer().isNot(AsmToken::EndOfStatement)) {
-      reportParseError("unexpected token, expected end of statement");
-      return false;
-    }
-
-    return false; // parseDirectiveModule has finished successfully.
-  }  else {
-    return Error(L, "'" + Twine(Option) + "' is not a valid .module option.");
-  }
-}
-
-/// parseDirectiveModuleFP
-///  ::= =32
-///  ::= =64
-bool LoongArchAsmParser::parseDirectiveModuleFP() {
-  MCAsmParser &Parser = getParser();
-  MCAsmLexer &Lexer = getLexer();
-
-  if (Lexer.isNot(AsmToken::Equal)) {
-    reportParseError("unexpected token, expected equals sign '='");
-    return false;
-  }
-  Parser.Lex(); // Eat '=' token.
-
-  LoongArchFPABIInfo::FpABIKind FpABI;
-  if (!parseFpABIValue(FpABI, ".module"))
-    return false;
-
-  if (getLexer().isNot(AsmToken::EndOfStatement)) {
-    reportParseError("unexpected token, expected end of statement");
-    return false;
-  }
-
-  // Synchronize the abi information with the FeatureBits information we
-  // changed above.
-  getTargetStreamer().updateABIInfo(*this);
-
-  // If printing assembly, use the recently updated abiflags information.
-  // If generating ELF, don't do anything.
-  getTargetStreamer().emitDirectiveModuleFP();
-
-  Parser.Lex(); // Consume the EndOfStatement.
-  return false;
-}
-
-bool LoongArchAsmParser::parseFpABIValue(LoongArchFPABIInfo::FpABIKind &FpABI,
-                                    StringRef Directive) {
-  MCAsmParser &Parser = getParser();
-  MCAsmLexer &Lexer = getLexer();
-  bool ModuleLevelOptions = Directive == ".module";
-
-  if (Lexer.is(AsmToken::Identifier)) {
-    Parser.Lex();
-
-    if (!isABI_LP32()) {
-      reportParseError("'" + Directive + " fp=32' requires the LP32 ABI");
-      return false;
-    }
-
-    return true;
-  }
-
-  if (Lexer.is(AsmToken::Integer)) {
-    unsigned Value = Parser.getTok().getIntVal();
-    Parser.Lex();
-
-    if (Value != 32 && Value != 64) {
-      reportParseError("unsupported value, expected '32' or '64'");
-      return false;
-    }
-
-    if (Value == 32) {
-      if (!isABI_LP32()) {
-        reportParseError("'" + Directive + " fp=32' requires the LP32 ABI");
-        return false;
-      }
-
-      FpABI = LoongArchFPABIInfo::FpABIKind::S32;
-      if (ModuleLevelOptions) {
-        clearModuleFeatureBits(LoongArch::FeatureFP64Bit, "fp64");
-      } else {
-        clearFeatureBits(LoongArch::FeatureFP64Bit, "fp64");
-      }
-    } else {
-      FpABI = LoongArchFPABIInfo::FpABIKind::S64;
-      if (ModuleLevelOptions) {
-        setModuleFeatureBits(LoongArch::FeatureFP64Bit, "fp64");
-      } else {
-        setFeatureBits(LoongArch::FeatureFP64Bit, "fp64");
-      }
-    }
-
-    return true;
-  }
-
-  return false;
 }
 
 bool LoongArchAsmParser::ParseDirective(AsmToken DirectiveID) {
@@ -2286,10 +2071,6 @@ bool LoongArchAsmParser::ParseDirective(AsmToken DirectiveID) {
     return false;
   }
 
-  if (IDVal == ".module") {
-    parseDirectiveModule();
-    return false;
-  }
   if (IDVal == ".llvm_internal_loongarch_reallow_module_directive") {
     parseInternalDirectiveReallowModule();
     return false;
