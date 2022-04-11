@@ -85,7 +85,7 @@ void LoongArchCCState::PreAnalyzeCallResultForF128(
 }
 
 /// Identify lowered values that originated from f128 or float arguments and
-/// record this for use by RetCC_LoongArchLP64LPX32.
+/// record this for use by RetCC_LoongArchLP64.
 void LoongArchCCState::PreAnalyzeReturnForF128(
     const SmallVectorImpl<ISD::OutputArg> &Outs) {
   const MachineFunction &MF = getMachineFunction();

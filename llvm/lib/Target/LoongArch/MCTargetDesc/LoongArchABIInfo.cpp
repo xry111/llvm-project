@@ -16,7 +16,6 @@
 using namespace llvm;
 
 namespace {
-static const MCPhysReg LP32IntRegs[4] = {LoongArch::A0, LoongArch::A1, LoongArch::A2, LoongArch::A3};
 
 static const MCPhysReg LoongArch64IntRegs[8] = {
     LoongArch::A0_64, LoongArch::A1_64, LoongArch::A2_64, LoongArch::A3_64,
@@ -24,42 +23,51 @@ static const MCPhysReg LoongArch64IntRegs[8] = {
 }
 
 ArrayRef<MCPhysReg> LoongArchABIInfo::GetByValArgRegs() const {
-  if (IsLP32())
-    return makeArrayRef(LP32IntRegs);
-  if (IsLPX32() || IsLP64D())
+  if (IsILP32D() || IsILP32F() || IsILP32S())
+    // TODO
+    llvm_unreachable("Unimplemented ABI");
+  if (IsLP64D() || IsLP64S() || IsLP64F())
     return makeArrayRef(LoongArch64IntRegs);
   llvm_unreachable("Unhandled ABI");
 }
 
 ArrayRef<MCPhysReg> LoongArchABIInfo::GetVarArgRegs() const {
-  if (IsLP32())
-    return makeArrayRef(LP32IntRegs);
-  if (IsLPX32() || IsLP64D())
+  if (IsILP32D() || IsILP32F() || IsILP32S())
+    // TODO
+    llvm_unreachable("Unimplemented ABI");
+  if (IsLP64D() || IsLP64S() || IsLP64F())
     return makeArrayRef(LoongArch64IntRegs);
   llvm_unreachable("Unhandled ABI");
 }
 
 unsigned LoongArchABIInfo::GetCalleeAllocdArgSizeInBytes(CallingConv::ID CC) const {
-  if (IsLP32())
-    return CC != CallingConv::Fast ? 16 : 0;
-  if (IsLPX32() || IsLP64D())
+  if (IsILP32D() || IsILP32F() || IsILP32S())
+    // TODO
+    llvm_unreachable("Unimplemented ABI");
+  if (IsLP64D() || IsLP64S() || IsLP64F())
     return 0;
   llvm_unreachable("Unhandled ABI");
 }
 
 LoongArchABIInfo LoongArchABIInfo::computeTargetABI(const Triple &TT, StringRef CPU,
                                           const MCTargetOptions &Options) {
-  if (Options.getABIName().startswith("lp32"))
-    return LoongArchABIInfo::LP32();
-  if (Options.getABIName().startswith("lpx32"))
-    return LoongArchABIInfo::LPX32();
+  if (Options.getABIName().startswith("ilp32d"))
+    return LoongArchABIInfo::ILP32D();
+  if (Options.getABIName().startswith("ilp32f"))
+    return LoongArchABIInfo::ILP32F();
+  if (Options.getABIName().startswith("ilp32s"))
+    return LoongArchABIInfo::ILP32S();
   if (Options.getABIName().startswith("lp64d"))
     return LoongArchABIInfo::LP64D();
+  if (Options.getABIName().startswith("lp64s"))
+    return LoongArchABIInfo::LP64S();
+  if (Options.getABIName().startswith("lp64f"))
+    return LoongArchABIInfo::LP64F();
   assert(Options.getABIName().empty() && "Unknown ABI option for LoongArch");
 
   if (TT.isLoongArch64())
     return LoongArchABIInfo::LP64D();
-  return LoongArchABIInfo::LP32();
+  return LoongArchABIInfo::ILP32D();
 }
 
 unsigned LoongArchABIInfo::GetStackPtr() const {
@@ -110,6 +118,6 @@ unsigned LoongArchABIInfo::GetEhDataReg(unsigned I) const {
     LoongArch::A0_64, LoongArch::A1_64, LoongArch::A2_64, LoongArch::A3_64
   };
 
-  return IsLP64D() ? EhDataReg64[I] : EhDataReg[I];
+  return (IsLP64D() || IsLP64S() || IsLP64F()) ? EhDataReg64[I] : EhDataReg[I];
 }
 

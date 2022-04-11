@@ -1919,19 +1919,6 @@ void Clang::AddLoongArchTargetArgs(const ArgList &Args,
   CmdArgs.push_back("-target-abi");
   CmdArgs.push_back(ABIName.data());
 
-  loongarch::FloatABI ABI = loongarch::getLoongArchFloatABI(D, Args);
-  if (ABI == loongarch::FloatABI::Soft) {
-    // Floating point operations and argument passing are soft.
-    CmdArgs.push_back("-msoft-float");
-    CmdArgs.push_back("-mfloat-abi");
-    CmdArgs.push_back("soft");
-  } else {
-    // Floating point operations and argument passing are hard.
-    assert(ABI == loongarch::FloatABI::Hard && "Invalid float abi!");
-    CmdArgs.push_back("-mfloat-abi");
-    CmdArgs.push_back("hard");
-  }
-
   if (Arg *A = Args.getLastArg(options::OPT_mcheck_zero_division,
                                options::OPT_mno_check_zero_division)) {
     if (A->getOption().matches(options::OPT_mno_check_zero_division)) {

@@ -53,22 +53,9 @@ void LoongArchTargetInfo::getTargetDefines(const LangOptions &Opts,
                                       MacroBuilder &Builder) const {
   Builder.defineMacro("__loongarch__");
 
-  if (ABI == "lp32") {
-    Builder.defineMacro("__loongarch32");
-  } else {
-    Builder.defineMacro("__loongarch64");
-  }
-
-  //TODO: support others ABIs
-  if (ABI == "lp64d") {
+  if (ABI == "lp64d" || ABI == "lp64s" || ABI == "lp64f") {
     Builder.defineMacro("__loongarch_lp64");
-  }
-
-  if (ABI == "lp32") {
-    Builder.defineMacro("_ABILP32", "1");
-  } else if (ABI == "lpx32") {
-    Builder.defineMacro("_ABILPX32", "2");
-  } else if (ABI == "lp64d") {
+    Builder.defineMacro("__loongarch64");
     Builder.defineMacro("_ABILP64", "3");
     Builder.defineMacro("_LOONGARCH_SIM", "_ABILP64");
   } else
@@ -76,49 +63,56 @@ void LoongArchTargetInfo::getTargetDefines(const LangOptions &Opts,
 
   Builder.defineMacro("__REGISTER_PREFIX__", "");
 
-  switch (FloatABI) {
-  case HardFloat:
-    Builder.defineMacro("__loongarch_hard_float", Twine(1));
-    break;
-  case SoftFloat:
-    Builder.defineMacro("__loongarch_soft_float", Twine(1));
-    break;
-  }
-
-  if (IsSingleFloat)
-    Builder.defineMacro("__loongarch_single_float", Twine(1));
-
-  switch (FPMode) {
-  case FP32:
-    Builder.defineMacro("__loongarch_fpr", Twine(32));
-    break;
-  case FP64:
-    Builder.defineMacro("__loongarch_fpr", Twine(64));
-    break;
-  }
-
   Builder.defineMacro("_LOONGARCH_SZPTR", Twine(getPointerWidth(0)));
   Builder.defineMacro("_LOONGARCH_SZINT", Twine(getIntWidth()));
   Builder.defineMacro("_LOONGARCH_SZLONG", Twine(getLongWidth()));
 
-  Builder.defineMacro("_LOONGARCH_ARCH", "\"" + CPU + "\"");
-  Builder.defineMacro("_LOONGARCH_ARCH_" + StringRef(CPU).upper());
+  Builder.defineMacro("_LOONGARCH_TUNE", "\"" + CPU + "\"");
+  Builder.defineMacro("_LOONGARCH_TUNE_" + StringRef(CPU).upper());
+
+  Builder.defineMacro("_LOONGARCH_ARCH", "\"" + getTriple().getArchName() + "\"");
+  Builder.defineMacro("_LOONGARCH_ARCH_" + StringRef(getTriple().getArchName()).upper());
 
   Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1");
   Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2");
   Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4");
 
-  // 32-bit loongarch processors don't have the necessary lld/scd instructions
-  // found in 64-bit processors. In the case of lp32 on a 64-bit processor,
-  // the instructions exist but using them violates the ABI since they
-  // require 64-bit GPRs and LP32 only supports 32-bit GPRs.
-  if (ABI == "lpx32" || ABI == "lp64d")
+  // 32-bit loongarch processors don't have the necessary ll.d/sc.d instructions
+  // found in 64-bit processors.
+  if (ABI == "lp64d" || ABI == "lp64s" || ABI == "lp64f")
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8");
+
+  // Bit-width of general purpose registers.
+  Builder.defineMacro("__loongarch_grlen", Twine(getRegisterWidth()));
+
+  // Bit-width of floating-point registers. The possible values for
+  // this macro are 0, 32 and 64. 0 if there is no FPU.
+  if (HasBasicD || HasBasicF)
+    Builder.defineMacro("__loongarch_frlen", HasBasicD ? "64" : "32");
+  else
+    Builder.defineMacro("__loongarch_frlen", "0");
+
+  // FIXME: Defined if floating-point/extended ABI type is single or double.
+  if (ABI == "lp64d" || ABI == "lp64f")
+    Builder.defineMacro("__loongarch_hard_float");
+
+  // FIXME: Defined if floating-point/extended ABI type is double.
+  if (ABI == "lp64d")
+    Builder.defineMacro("__loongarch_double_float");
+
+  // FIXME: Defined if floating-point/extended ABI type is single.
+  if (ABI == "lp64f")
+    Builder.defineMacro("__loongarch_single_float");
+
+  // FIXME: Defined if floating-point/extended ABI type is soft.
+  if (ABI == "lp64s")
+    Builder.defineMacro("__loongarch_soft_float");
 }
 
 bool LoongArchTargetInfo::hasFeature(StringRef Feature) const {
   return llvm::StringSwitch<bool>(Feature)
-      .Case("fp64", FPMode == FP64)
+      .Case("d", HasBasicD)
+      .Case("f", HasBasicF)
       .Default(false);
 }
 
@@ -128,46 +122,20 @@ ArrayRef<Builtin::Info> LoongArchTargetInfo::getTargetBuiltins() const {
 }
 
 bool LoongArchTargetInfo::validateTarget(DiagnosticsEngine &Diags) const {
-  // FIXME: It's valid to use LP32 on a 64-bit CPU but the backend can't handle
-  //        this yet. It's better to fail here than on the backend assertion.
-  if (processorSupportsGPR64() && ABI == "lp32") {
-    Diags.Report(diag::err_target_unsupported_abi) << ABI << CPU;
-    return false;
-  }
-
   // 64-bit ABI's require 64-bit CPU's.
-  if (!processorSupportsGPR64() && (ABI == "lpx32" || ABI == "lp64d")) {
+  if (!processorSupportsGPR64() &&
+      (ABI == "lp64d" || ABI == "lp64s" || ABI == "lp64f")) {
     Diags.Report(diag::err_target_unsupported_abi) << ABI << CPU;
     return false;
   }
 
-  // FIXME: It's valid to use lp32 on a loongarch64 triple but the backend
-  //        can't handle this yet. It's better to fail here than on the
-  //        backend assertion.
-  if (getTriple().isLoongArch64() && ABI == "lp32") {
+  // FIXME: It's valid to use lp64d/lp64s/lp64f on a loongarch32 triple
+  // but the backend can't handle this yet. It's better to fail here than on the
+  // backend assertion.
+  if (getTriple().isLoongArch32() &&
+      (ABI == "lp64d" || ABI == "lp64s" || ABI == "lp64f")) {
     Diags.Report(diag::err_target_unsupported_abi_for_triple)
         << ABI << getTriple().str();
-    return false;
-  }
-
-  // FIXME: It's valid to use lpx32/lp64d on a loongarch32 triple but the backend
-  //        can't handle this yet. It's better to fail here than on the
-  //        backend assertion.
-  if (getTriple().isLoongArch32() && (ABI == "lpx32" || ABI == "lp64d")) {
-    Diags.Report(diag::err_target_unsupported_abi_for_triple)
-        << ABI << getTriple().str();
-    return false;
-  }
-
-  // -mfp32 and lpx32/lp64d ABIs are incompatible
-  if (FPMode != FP64 && !IsSingleFloat &&
-      (ABI == "lpx32"  || ABI == "lp64d")) {
-    Diags.Report(diag::err_opt_not_valid_with_opt) << "-mfp32" << ABI;
-    return false;
-  }
-
-  if (FPMode != FP64 && (CPU == "la464")) {
-    Diags.Report(diag::err_opt_not_valid_with_opt) << "-mfp32" << CPU;
     return false;
   }
 

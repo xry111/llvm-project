@@ -23,7 +23,7 @@ class TargetRegisterClass;
 
 class LoongArchABIInfo {
 public:
-  enum class ABI { Unknown, LP32, LPX32, LP64D };
+  enum class ABI { Unknown, ILP32D, ILP32F, ILP32S, LP64D, LP64F, LP64S };
 
 protected:
   ABI ThisABI;
@@ -32,16 +32,22 @@ public:
   LoongArchABIInfo(ABI ThisABI) : ThisABI(ThisABI) {}
 
   static LoongArchABIInfo Unknown() { return LoongArchABIInfo(ABI::Unknown); }
-  static LoongArchABIInfo LP32() { return LoongArchABIInfo(ABI::LP32); }
-  static LoongArchABIInfo LPX32() { return LoongArchABIInfo(ABI::LPX32); }
+  static LoongArchABIInfo ILP32D() { return LoongArchABIInfo(ABI::ILP32D); }
+  static LoongArchABIInfo ILP32F() { return LoongArchABIInfo(ABI::ILP32F); }
+  static LoongArchABIInfo ILP32S() { return LoongArchABIInfo(ABI::ILP32S); }
   static LoongArchABIInfo LP64D() { return LoongArchABIInfo(ABI::LP64D); }
+  static LoongArchABIInfo LP64S() { return LoongArchABIInfo(ABI::LP64S); }
+  static LoongArchABIInfo LP64F() { return LoongArchABIInfo(ABI::LP64F); }
   static LoongArchABIInfo computeTargetABI(const Triple &TT, StringRef CPU,
                                       const MCTargetOptions &Options);
 
   bool IsKnown() const { return ThisABI != ABI::Unknown; }
-  bool IsLP32() const { return ThisABI == ABI::LP32; }
-  bool IsLPX32() const { return ThisABI == ABI::LPX32; }
+  bool IsILP32D() const { return ThisABI == ABI::ILP32D; }
+  bool IsILP32F() const { return ThisABI == ABI::ILP32F; }
+  bool IsILP32S() const { return ThisABI == ABI::ILP32S; }
   bool IsLP64D() const { return ThisABI == ABI::LP64D; }
+  bool IsLP64S() const { return ThisABI == ABI::LP64S; }
+  bool IsLP64F() const { return ThisABI == ABI::LP64F; }
   ABI GetEnumValue() const { return ThisABI; }
 
   /// The registers to use for byval arguments.
@@ -51,7 +57,7 @@ public:
   ArrayRef<MCPhysReg> GetVarArgRegs() const;
 
   /// Obtain the size of the area allocated by the callee for arguments.
-  /// CallingConv::FastCall affects the value for LP32.
+  /// CallingConv::FastCall affects the value for 32-bit ABI.
   unsigned GetCalleeAllocdArgSizeInBytes(CallingConv::ID CC) const;
 
   /// Ordering of ABI's
@@ -71,8 +77,12 @@ public:
   unsigned GetPtrSubOp() const;
   unsigned GetPtrAndOp() const;
   unsigned GetGPRMoveOp() const;
-  inline bool ArePtrs64bit() const { return IsLP64D(); }
-  inline bool AreGprs64bit() const { return IsLPX32() || IsLP64D(); }
+  inline bool ArePtrs64bit() const {
+    return IsLP64D() || IsLP64S() || IsLP64F();
+  }
+  inline bool AreGprs64bit() const {
+    return IsLP64D() || IsLP64S() || IsLP64F();
+  }
 
   unsigned GetEhDataReg(unsigned I) const;
 };

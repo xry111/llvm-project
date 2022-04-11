@@ -22,25 +22,17 @@ namespace driver {
 namespace tools {
 
 namespace loongarch {
-enum class FloatABI {
-  Invalid,
-  Soft,
-  Hard,
-};
-
 void getLoongArchCPUAndABI(const llvm::opt::ArgList &Args,
                       const llvm::Triple &Triple, StringRef &CPUName,
                       StringRef &ABIName);
 void getLoongArchTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                            const llvm::opt::ArgList &Args,
                            std::vector<StringRef> &Features);
-StringRef getGnuCompatibleLoongArchABIName(StringRef ABI);
-loongarch::FloatABI getLoongArchFloatABI(const Driver &D, const llvm::opt::ArgList &Args);
 std::string getLoongArchABILibSuffix(const llvm::opt::ArgList &Args,
                                 const llvm::Triple &Triple);
 bool hasLoongArchAbiArg(const llvm::opt::ArgList &Args, const char *Value);
+bool hasLoongArchFpuArg(const llvm::opt::ArgList &Args, const char *Value);
 bool isUCLibc(const llvm::opt::ArgList &Args);
-bool isFP64Default(const llvm::opt::ArgList &Args);
 
 } // end namespace loongarch
 } // end namespace target

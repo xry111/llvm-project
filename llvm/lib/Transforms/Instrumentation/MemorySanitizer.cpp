@@ -4506,12 +4506,6 @@ struct VarArgLoongArch64Helper : public VarArgHelper {
       Value *A = *ArgIt;
       Value *Base;
       uint64_t ArgSize = DL.getTypeAllocSize(A->getType());
-      if (TargetTriple.getArch() == Triple::loongarch64) {
-        // Adjusting the shadow for argument with size < 8 to match the placement
-        // of bits in big endian system
-        if (ArgSize < 8)
-          VAArgOffset += (8 - ArgSize);
-      }
       Base = getShadowPtrForVAArgument(A->getType(), IRB, VAArgOffset, ArgSize);
       VAArgOffset += ArgSize;
       VAArgOffset = alignTo(VAArgOffset, 8);

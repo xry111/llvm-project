@@ -96,10 +96,6 @@ NoZeroDivCheck("mnocheck-zero-division", cl::Hidden,
                cl::desc("LoongArch: Don't trap on integer division by zero."),
                cl::init(false));
 
-static cl::opt<bool>
-UseLoongArchTailCalls("loongarch-tail-calls", cl::Hidden,
-                      cl::desc("LoongArch: permit tail calls."), cl::init(false));
-
 static const MCPhysReg LoongArch64DPRegs[8] = {
   LoongArch::F0_64, LoongArch::F1_64, LoongArch::F2_64, LoongArch::F3_64,
   LoongArch::F4_64, LoongArch::F5_64, LoongArch::F6_64, LoongArch::F7_64
@@ -228,10 +224,6 @@ LoongArchTargetLowering::LoongArchTargetLowering(const LoongArchTargetMachine &T
   setOperationAction(ISD::SETCC,              MVT::f32,   Custom);
   setOperationAction(ISD::SETCC,              MVT::f64,   Custom);
   setOperationAction(ISD::BRCOND,             MVT::Other, Custom);
-  // fcopysign does not use 'custom' in the instruction legalization phase
-  // when using llvm's Intrinsic-'copysign'.
-  //setOperationAction(ISD::FCOPYSIGN,          MVT::f32,   Custom);
-  //setOperationAction(ISD::FCOPYSIGN,          MVT::f64,   Custom);
   setOperationAction(ISD::FP_TO_SINT,         MVT::i32,   Custom);
 
   if (Subtarget.is64Bit()) {
@@ -352,22 +344,16 @@ LoongArchTargetLowering::LoongArchTargetLowering(const LoongArchTargetMachine &T
   setTargetDAGCombine(ISD::AssertZext);
   setTargetDAGCombine(ISD::SHL);
 
-  if (ABI.IsLP32()) {
-    // These libcalls are not available in 32-bit.
-    setLibcallName(RTLIB::SHL_I128, nullptr);
-    setLibcallName(RTLIB::SRL_I128, nullptr);
-    setLibcallName(RTLIB::SRA_I128, nullptr);
+  if (ABI.IsILP32D() || ABI.IsILP32F() || ABI.IsILP32S()) {
+    // TODO
+    llvm_unreachable("Unimplemented ABI");
   }
 
-  if (!Subtarget.useSoftFloat()) {
+  if (Subtarget.hasBasicF())
     addRegisterClass(MVT::f32, &LoongArch::FGR32RegClass);
 
-    // When dealing with single precision only, use libcalls
-    if (!Subtarget.isSingleFloat()) {
-      if (Subtarget.isFP64bit())
-        addRegisterClass(MVT::f64, &LoongArch::FGR64RegClass);
-    }
-  }
+  if (Subtarget.hasBasicD())
+    addRegisterClass(MVT::f64, &LoongArch::FGR64RegClass);
 
   setOperationAction(ISD::SMUL_LOHI,          MVT::i32, Custom);
   setOperationAction(ISD::UMUL_LOHI,          MVT::i32, Custom);
@@ -435,12 +421,12 @@ LoongArchTargetLowering::LoongArchTargetLowering(const LoongArchTargetMachine &T
 
   setMinFunctionAlignment(Subtarget.is64Bit() ? Align(8) : Align(4));
 
-  // The arguments on the stack are defined in terms of 4-byte slots on LP32
-  // and 8-byte slots on LPX32/LP64D.
-  setMinStackArgumentAlignment((ABI.IsLPX32() || ABI.IsLP64D()) ? Align(8)
-                                                               : Align(4));
+  // The arguments on the stack are defined in terms of 4-byte slots on 32bit
+  // target and 8-byte slots on 64bit target.
+  setMinStackArgumentAlignment(Subtarget.is64Bit() ? Align(8) : Align(4));
 
-  setStackPointerRegisterToSaveRestore(ABI.IsLP64D() ? LoongArch::SP_64 : LoongArch::SP);
+  setStackPointerRegisterToSaveRestore(Subtarget.is64Bit() ? LoongArch::SP_64
+                                                           : LoongArch::SP);
 
   MaxStoresPerMemcpy = 16;
 
@@ -801,7 +787,7 @@ shouldTransformMulToShiftsAddsSubs(APInt C, EVT VT,
   //   That allows to remove a workaround for types not supported natively.
   // - Take in account `-Os, -Oz` flags because this optimization
   //   increases code size.
-  unsigned MaxSteps = Subtarget.isABI_LP32() ? 8 : 17;
+  unsigned MaxSteps = Subtarget.is64Bit() ? 17 : 8;
 
   SmallVector<APInt, 16> WorkStack(1, C);
   unsigned Steps = 0;
@@ -1007,7 +993,6 @@ LowerOperation(SDValue Op, SelectionDAG &DAG) const
   case ISD::SETCC:              return lowerSETCC(Op, DAG);
   case ISD::VASTART:            return lowerVASTART(Op, DAG);
   case ISD::VAARG:              return lowerVAARG(Op, DAG);
-  case ISD::FCOPYSIGN:          return lowerFCOPYSIGN(Op, DAG);
   case ISD::FRAMEADDR:          return lowerFRAMEADDR(Op, DAG);
   case ISD::RETURNADDR:         return lowerRETURNADDR(Op, DAG);
   case ISD::EH_RETURN:          return lowerEH_RETURN(Op, DAG);
@@ -1448,6 +1433,8 @@ MachineBasicBlock *LoongArchTargetLowering::emitAtomicBinaryPartword(
   unsigned Scratch = RegInfo.createVirtualRegister(RC);
   unsigned Scratch2 = RegInfo.createVirtualRegister(RC);
   unsigned Scratch3 = RegInfo.createVirtualRegister(RC);
+  unsigned Scratch4 = RegInfo.createVirtualRegister(RC);
+  unsigned Scratch5 = RegInfo.createVirtualRegister(RC);
 
   unsigned AtomicOp = 0;
   switch (MI.getOpcode()) {
@@ -1586,6 +1573,10 @@ MachineBasicBlock *LoongArchTargetLowering::emitAtomicBinaryPartword(
       .addReg(Scratch2, RegState::EarlyClobber | RegState::Define |
                             RegState::Dead | RegState::Implicit)
       .addReg(Scratch3, RegState::EarlyClobber | RegState::Define |
+                            RegState::Dead | RegState::Implicit)
+      .addReg(Scratch4, RegState::EarlyClobber | RegState::Define |
+                            RegState::Dead | RegState::Implicit)
+      .addReg(Scratch5, RegState::EarlyClobber | RegState::Define |
                             RegState::Dead | RegState::Implicit);
 
   BuildMI(BB, DL, TII->get(LoongArch::DBAR)).addImm(0);
@@ -1972,19 +1963,20 @@ SDValue LoongArchTargetLowering::lowerVAARG(SDValue Op, SelectionDAG &DAG) const
       llvm::MaybeAlign(Node->getConstantOperandVal(3)).valueOrOne();
   const Value *SV = cast<SrcValueSDNode>(Node->getOperand(2))->getValue();
   SDLoc DL(Node);
-  unsigned ArgSlotSizeInBytes = (ABI.IsLPX32() || ABI.IsLP64D()) ? 8 : 4;
+  unsigned ArgSlotSizeInBytes = Subtarget.is64Bit() ? 8 : 4;
 
   SDValue VAListLoad = DAG.getLoad(getPointerTy(DAG.getDataLayout()), DL, Chain,
                                    VAListPtr, MachinePointerInfo(SV));
   SDValue VAList = VAListLoad;
 
   // Re-align the pointer if necessary.
-  // It should only ever be necessary for 64-bit types on LP32 since the minimum
-  // argument alignment is the same as the maximum type alignment for LPX32/LP64D.
+  // It should only ever be necessary for 64-bit types on ILP32D/ILP32F/ILP32S
+  // since the minimum argument alignment is the same as the maximum type
+  // alignment for LP64D/LP64S/LP64F.
   //
   // FIXME: We currently align too often. The code generator doesn't notice
   //        when the pointer is still aligned from the last va_arg (or pair of
-  //        va_args for the i64 on LP32 case).
+  //        va_args for the i64 on ILP32D/ILP32F/ILP32S case).
   if (Align > getMinStackArgumentAlignment()) {
     VAList = DAG.getNode(
         ISD::ADD, DL, VAList.getValueType(), VAList,
@@ -2011,45 +2003,6 @@ SDValue LoongArchTargetLowering::lowerVAARG(SDValue Op, SelectionDAG &DAG) const
   return DAG.getLoad(VT, DL, Chain, VAList, MachinePointerInfo());
 }
 
-static SDValue lowerFCOPYSIGLPX32(SDValue Op, SelectionDAG &DAG) {
-  // TODO:
-  return SDValue();
-}
-
-static SDValue lowerFCOPYSIGLP64(SDValue Op, SelectionDAG &DAG) {
-  unsigned WidthX = Op.getOperand(0).getValueSizeInBits();
-  unsigned WidthY = Op.getOperand(1).getValueSizeInBits();
-  EVT TyX = MVT::getIntegerVT(WidthX), TyY = MVT::getIntegerVT(WidthY);
-  SDLoc DL(Op);
-
-  // Bitcast to integer nodes.
-  SDValue X = DAG.getNode(ISD::BITCAST, DL, TyX, Op.getOperand(0));
-  SDValue Y = DAG.getNode(ISD::BITCAST, DL, TyY, Op.getOperand(1));
-
-  // bstrpick  E, Y, width(Y) - 1, width(Y) - 1  ; extract bit width(Y)-1 of Y
-  // bstrins  X, E, width(X) - 1, width(X) - 1  ; insert extracted bit at bit width(X)-1 of X
-  SDValue E = DAG.getNode(LoongArchISD::BSTRPICK, DL, TyY, Y,
-                          DAG.getConstant(WidthY - 1, DL, MVT::i32), DAG.getConstant(WidthY - 1, DL, MVT::i32));
-
-  if (WidthX > WidthY)
-    E = DAG.getNode(ISD::ZERO_EXTEND, DL, TyX, E);
-  else if (WidthY > WidthX)
-    E = DAG.getNode(ISD::TRUNCATE, DL, TyX, E);
-
-  SDValue I = DAG.getNode(LoongArchISD::BSTRINS, DL, TyX, E,
-                          DAG.getConstant(WidthX - 1, DL, MVT::i32), DAG.getConstant(WidthX - 1, DL, MVT::i32),
-                          X);
-  return DAG.getNode(ISD::BITCAST, DL, Op.getOperand(0).getValueType(), I);
-}
-
-SDValue
-LoongArchTargetLowering::lowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const {
-  if (Subtarget.is64Bit())
-    return lowerFCOPYSIGLP64(Op, DAG);
-
-  return lowerFCOPYSIGLPX32(Op, DAG);
-}
-
 SDValue LoongArchTargetLowering::
 lowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const {
   // check the depth
@@ -2061,7 +2014,8 @@ lowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const {
   EVT VT = Op.getValueType();
   SDLoc DL(Op);
   SDValue FrameAddr = DAG.getCopyFromReg(
-      DAG.getEntryNode(), DL, ABI.IsLP64D() ? LoongArch::FP_64 : LoongArch::FP, VT);
+      DAG.getEntryNode(), DL,
+      Subtarget.is64Bit() ? LoongArch::FP_64 : LoongArch::FP, VT);
   return FrameAddr;
 }
 
@@ -2077,7 +2031,7 @@ SDValue LoongArchTargetLowering::lowerRETURNADDR(SDValue Op,
   MachineFunction &MF = DAG.getMachineFunction();
   MachineFrameInfo &MFI = MF.getFrameInfo();
   MVT VT = Op.getSimpleValueType();
-  unsigned RA = ABI.IsLP64D() ? LoongArch::RA_64 : LoongArch::RA;
+  unsigned RA = Subtarget.is64Bit() ? LoongArch::RA_64 : LoongArch::RA;
   MFI.setReturnAddressIsTaken(true);
 
   // Return RA, which contains the return address. Mark it an implicit live-in.
@@ -2099,12 +2053,12 @@ SDValue LoongArchTargetLowering::lowerEH_RETURN(SDValue Op, SelectionDAG &DAG)
   SDValue Offset    = Op.getOperand(1);
   SDValue Handler   = Op.getOperand(2);
   SDLoc DL(Op);
-  EVT Ty = ABI.IsLP64D() ? MVT::i64 : MVT::i32;
+  EVT Ty = Subtarget.is64Bit() ? MVT::i64 : MVT::i32;
 
   // Store stack offset in A1, store jump target in A0. Glue CopyToReg and
   // EH_RETURN nodes, so that instructions are emitted back-to-back.
-  unsigned OffsetReg = ABI.IsLP64D() ? LoongArch::A1_64 : LoongArch::A1;
-  unsigned AddrReg = ABI.IsLP64D() ? LoongArch::A0_64 : LoongArch::A0;
+  unsigned OffsetReg = Subtarget.is64Bit() ? LoongArch::A1_64 : LoongArch::A1;
+  unsigned AddrReg = Subtarget.is64Bit() ? LoongArch::A0_64 : LoongArch::A0;
   Chain = DAG.getCopyToReg(Chain, DL, OffsetReg, Offset, SDValue());
   Chain = DAG.getCopyToReg(Chain, DL, AddrReg, Handler, Chain.getValue(1));
   return DAG.getNode(LoongArchISD::EH_RETURN, DL, MVT::Other, Chain,
@@ -2214,7 +2168,8 @@ static SDValue lowerFP_TO_SINT_STORE(StoreSDNode *SD, SelectionDAG &DAG,
 
 SDValue LoongArchTargetLowering::lowerSTORE(SDValue Op, SelectionDAG &DAG) const {
   StoreSDNode *SD = cast<StoreSDNode>(Op);
-  return lowerFP_TO_SINT_STORE(SD, DAG, Subtarget.isSingleFloat());
+  return lowerFP_TO_SINT_STORE(
+      SD, DAG, (Subtarget.hasBasicF() && !Subtarget.hasBasicD()));
 }
 
 SDValue LoongArchTargetLowering::lowerINTRINSIC_WO_CHAIN(SDValue Op,
@@ -2270,7 +2225,8 @@ SDValue LoongArchTargetLowering::lowerFP_TO_UINT(SDValue Op, SelectionDAG &DAG) 
 }
 
 SDValue LoongArchTargetLowering::lowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG) const {
-  if (Op.getValueSizeInBits() > 32 && Subtarget.isSingleFloat())
+  if (Op.getValueSizeInBits() > 32 &&
+      (Subtarget.hasBasicF() && !Subtarget.hasBasicD()))
     return SDValue();
 
   EVT FPTy = EVT::getFloatingPointVT(Op.getValueSizeInBits());
@@ -2290,11 +2246,57 @@ SDValue LoongArchTargetLowering::lowerEH_DWARF_CFA(SDValue Op,
   return DAG.getFrameIndex(FI, ValTy);
 }
 
+// Check whether the tail call optimization conditions are met
 bool LoongArchTargetLowering::isEligibleForTailCallOptimization(
-    const CCState &CCInfo, unsigned NextStackOffset,
-    const LoongArchFunctionInfo &FI) const {
-  if (!UseLoongArchTailCalls)
+    const CCState &CCInfo, CallLoweringInfo &CLI, MachineFunction &MF,
+    unsigned NextStackOffset, const LoongArchFunctionInfo &FI) const {
+
+  auto &Callee = CLI.Callee;
+  auto CalleeCC = CLI.CallConv;
+  auto IsVarArg = CLI.IsVarArg;
+  auto &Outs = CLI.Outs;
+  auto &Caller = MF.getFunction();
+  auto CallerCC = Caller.getCallingConv();
+
+  if (Caller.getFnAttribute("disable-tail-calls").getValueAsString() == "true")
     return false;
+
+  if (Caller.hasFnAttribute("interrupt"))
+    return false;
+
+  if (IsVarArg)
+    return false;
+
+  if (getTargetMachine().getCodeModel() == CodeModel::Large)
+    return false;
+
+  if (getTargetMachine().getRelocationModel() == Reloc::Static)
+    return false;
+
+  // Do not tail call optimize if the stack is used to pass parameters.
+  if (CCInfo.getNextStackOffset() != 0)
+    return false;
+
+  // Do not tail call optimize functions with byval parameters.
+  for (auto &Arg : Outs)
+    if (Arg.Flags.isByVal())
+      return false;
+
+  // Do not tail call optimize if either caller or callee uses structret
+  // semantics.
+  auto IsCallerStructRet = Caller.hasStructRetAttr();
+  auto IsCalleeStructRet = Outs.empty() ? false : Outs[0].Flags.isSRet();
+  if (IsCallerStructRet || IsCalleeStructRet)
+    return false;
+
+  // The callee has to preserve all registers the caller needs to preserve.
+  const LoongArchRegisterInfo *TRI = Subtarget.getRegisterInfo();
+  const uint32_t *CallerPreserved = TRI->getCallPreservedMask(MF, CallerCC);
+  if (CalleeCC != CallerCC) {
+    const uint32_t *CalleePreserved = TRI->getCallPreservedMask(MF, CalleeCC);
+    if (!TRI->regmaskSubsetEqual(CallerPreserved, CalleePreserved))
+      return false;
+  }
 
   // Return false if either the callee or caller has a byval argument.
   if (CCInfo.getInRegsParamsCount() > 0 || FI.hasByvalArg())
@@ -2311,7 +2313,7 @@ bool LoongArchTargetLowering::isEligibleForTailCallOptimization(
 
 //===----------------------------------------------------------------------===//
 // TODO: Implement a generic logic using tblgen that can support this.
-// LoongArch LP32 ABI rules:
+// LoongArch 32-bit ABI rules:
 // ---
 // i32 - Passed in A0, A1, A2, A3 and stack
 // f32 - Only passed in f32 registers if no int reg has been used yet to hold
@@ -2329,7 +2331,7 @@ bool LoongArchTargetLowering::isEligibleForTailCallOptimization(
 //  For vararg functions, all arguments are passed in A0, A1, A2, A3 and stack.
 //===----------------------------------------------------------------------===//
 
-static bool CC_LoongArchLP32(unsigned ValNo, MVT ValVT, MVT LocVT,
+static bool CC_LoongArchILP32(unsigned ValNo, MVT ValVT, MVT LocVT,
                        CCValAssign::LocInfo LocInfo, ISD::ArgFlagsTy ArgFlags,
                        CCState &State, ArrayRef<MCPhysReg> F64Regs) {
   static const MCPhysReg IntRegs[] = { LoongArch::A0, LoongArch::A1, LoongArch::A2, LoongArch::A3 };
@@ -2425,24 +2427,24 @@ static bool CC_LoongArchLP32(unsigned ValNo, MVT ValVT, MVT LocVT,
   return false;
 }
 
-static bool CC_LoongArchLP32_FP32(unsigned ValNo, MVT ValVT,
+static bool CC_LoongArchILP32_FP32(unsigned ValNo, MVT ValVT,
                             MVT LocVT, CCValAssign::LocInfo LocInfo,
                             ISD::ArgFlagsTy ArgFlags, CCState &State) {
   static const MCPhysReg F64Regs[] = {LoongArch::F0_64, LoongArch::F1_64, LoongArch::F2_64, \
                                       LoongArch::F3_64, LoongArch::F4_64, LoongArch::F5_64, \
                                       LoongArch::F6_64, LoongArch::F7_64 };
 
-  return CC_LoongArchLP32(ValNo, ValVT, LocVT, LocInfo, ArgFlags, State, F64Regs);
+  return CC_LoongArchILP32(ValNo, ValVT, LocVT, LocInfo, ArgFlags, State, F64Regs);
 }
 
-static bool CC_LoongArchLP32_FP64(unsigned ValNo, MVT ValVT,
+static bool CC_LoongArchILP32_FP64(unsigned ValNo, MVT ValVT,
                             MVT LocVT, CCValAssign::LocInfo LocInfo,
                             ISD::ArgFlagsTy ArgFlags, CCState &State) {
   static const MCPhysReg F64Regs[] = {LoongArch::F0_64, LoongArch::F1_64, LoongArch::F2_64, \
                                       LoongArch::F3_64, LoongArch::F4_64, LoongArch::F5_64, \
                                       LoongArch::F6_64, LoongArch::F7_64 };
 
-  return CC_LoongArchLP32(ValNo, ValVT, LocVT, LocInfo, ArgFlags, State, F64Regs);
+  return CC_LoongArchILP32(ValNo, ValVT, LocVT, LocInfo, ArgFlags, State, F64Regs);
 }
 
 static bool CC_LoongArch_F128(unsigned ValNo, MVT ValVT,
@@ -2464,7 +2466,7 @@ static bool CC_LoongArch_F128(unsigned ValNo, MVT ValVT,
   return true;
 }
 
-static bool CC_LoongArchLP32(unsigned ValNo, MVT ValVT, MVT LocVT,
+static bool CC_LoongArchILP32(unsigned ValNo, MVT ValVT, MVT LocVT,
                        CCValAssign::LocInfo LocInfo, ISD::ArgFlagsTy ArgFlags,
                        CCState &State) LLVM_ATTRIBUTE_UNUSED;
 
@@ -2499,12 +2501,11 @@ SDValue LoongArchTargetLowering::passArgOnStack(SDValue StackPtr, unsigned Offse
                       /* Alignment = */ 0, MachineMemOperand::MOVolatile);
 }
 
-void LoongArchTargetLowering::
-getOpndList(SmallVectorImpl<SDValue> &Ops,
-            std::deque<std::pair<unsigned, SDValue>> &RegsToPass,
-            bool IsPICCall, bool GlobalOrExternal, bool InternalLinkage,
-            bool IsCallReloc, CallLoweringInfo &CLI, SDValue Callee,
-            SDValue Chain) const {
+void LoongArchTargetLowering::getOpndList(
+    SmallVectorImpl<SDValue> &Ops,
+    std::deque<std::pair<unsigned, SDValue>> &RegsToPass, bool IsPICCall,
+    bool GlobalOrExternal, bool IsCallReloc, CallLoweringInfo &CLI,
+    SDValue Callee, SDValue Chain, bool IsTailCall) const {
   // Build a sequence of copy-to-reg nodes chained together with token
   // chain and flag operands which copy the outgoing args into registers.
   // The InFlag in necessary since all emitted instructions must be
@@ -2525,12 +2526,14 @@ getOpndList(SmallVectorImpl<SDValue> &Ops,
     Ops.push_back(CLI.DAG.getRegister(RegsToPass[i].first,
                                       RegsToPass[i].second.getValueType()));
 
-  // Add a register mask operand representing the call-preserved registers.
-  const TargetRegisterInfo *TRI = Subtarget.getRegisterInfo();
-  const uint32_t *Mask =
-      TRI->getCallPreservedMask(CLI.DAG.getMachineFunction(), CLI.CallConv);
-  assert(Mask && "Missing call preserved mask for calling convention");
-  Ops.push_back(CLI.DAG.getRegisterMask(Mask));
+  if (!IsTailCall) {
+    // Add a register mask operand representing the call-preserved registers.
+    const TargetRegisterInfo *TRI = Subtarget.getRegisterInfo();
+    const uint32_t *Mask =
+        TRI->getCallPreservedMask(CLI.DAG.getMachineFunction(), CLI.CallConv);
+    assert(Mask && "Missing call preserved mask for calling convention");
+    Ops.push_back(CLI.DAG.getRegisterMask(Mask));
+  }
 
   if (InFlag.getNode())
     Ops.push_back(InFlag);
@@ -2576,15 +2579,17 @@ LoongArchTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   // There is one case where CALLSEQ_START..CALLSEQ_END can be nested, which
   // is during the lowering of a call with a byval argument which produces
-  // a call to memcpy. For the LP32 case, this causes the caller to allocate
-  // stack space for the reserved argument area for the callee, then recursively
-  // again for the memcpy call. In the NEWABI case, this doesn't occur as those
-  // ABIs mandate that the callee allocates the reserved argument area. We do
-  // still produce nested CALLSEQ_START..CALLSEQ_END with zero space though.
+  // a call to memcpy. For the ILP32D/ILP32F/ILP32S case, this causes the caller
+  // to allocate stack space for the reserved argument area for the callee, then
+  // recursively again for the memcpy call. In the NEWABI case, this doesn't
+  // occur as those ABIs mandate that the callee allocates the reserved argument
+  // area. We do still produce nested CALLSEQ_START..CALLSEQ_END with zero space
+  // though.
   //
   // If the callee has a byval argument and memcpy is used, we are mandated
-  // to already have produced a reserved argument area for the callee for LP32.
-  // Therefore, the reserved argument area can be reused for both calls.
+  // to already have produced a reserved argument area for the callee for
+  // ILP32D/ILP32F/ILP32S. Therefore, the reserved argument area can be reused
+  // for both calls.
   //
   // Other cases of calling memcpy cannot have a chain with a CALLSEQ_START
   // present, as we have yet to hook that node onto the chain.
@@ -2617,17 +2622,13 @@ LoongArchTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   // Check if it's really possible to do a tail call. Restrict it to functions
   // that are part of this compilation unit.
-  bool InternalLinkage = false;
   if (IsTailCall) {
     IsTailCall = isEligibleForTailCallOptimization(
-        CCInfo, NextStackOffset, *MF.getInfo<LoongArchFunctionInfo>());
-     if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee)) {
-      InternalLinkage = G->getGlobal()->hasInternalLinkage();
-      IsTailCall &= (InternalLinkage || G->getGlobal()->hasLocalLinkage() ||
-                     G->getGlobal()->hasPrivateLinkage() ||
-                     G->getGlobal()->hasHiddenVisibility() ||
-                     G->getGlobal()->hasProtectedVisibility());
-     }
+        CCInfo, CLI, MF, NextStackOffset, *MF.getInfo<LoongArchFunctionInfo>());
+    if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee)) {
+      if (G->getGlobal()->hasExternalWeakLinkage())
+        IsTailCall = false;
+    }
   }
   if (!IsTailCall && CLI.CB && CLI.CB->isMustTailCall())
     report_fatal_error("failed to perform tail call elimination on a call "
@@ -2646,9 +2647,9 @@ LoongArchTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   if (!(IsTailCall || MemcpyInByVal))
     Chain = DAG.getCALLSEQ_START(Chain, NextStackOffset, 0, DL);
 
-  SDValue StackPtr =
-      DAG.getCopyFromReg(Chain, DL, ABI.IsLP64D() ? LoongArch::SP_64 : LoongArch::SP,
-                         getPointerTy(DAG.getDataLayout()));
+  SDValue StackPtr = DAG.getCopyFromReg(
+      Chain, DL, Subtarget.is64Bit() ? LoongArch::SP_64 : LoongArch::SP,
+      getPointerTy(DAG.getDataLayout()));
 
   std::deque<std::pair<unsigned, SDValue>> RegsToPass;
   SmallVector<SDValue, 8> MemOpChains;
@@ -2768,8 +2769,8 @@ LoongArchTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   SmallVector<SDValue, 8> Ops(1, Chain);
   SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
 
-  getOpndList(Ops, RegsToPass, IsPIC, GlobalOrExternal, InternalLinkage,
-              IsCallReloc, CLI, Callee, Chain);
+  getOpndList(Ops, RegsToPass, IsPIC, GlobalOrExternal, IsCallReloc, CLI,
+              Callee, Chain, IsTailCall);
 
   if (IsTailCall) {
     MF.getFrameInfo().setHasTailCall();
@@ -2886,10 +2887,10 @@ static SDValue UnpackFromArgumentSlot(SDValue Val, const CCValAssign &VA,
   }
   }
 
-  // If this is an value smaller than the argument slot size (32-bit for LP32,
-  // 64-bit for LPX32/LP64D), it has been promoted in some way to the argument slot
-  // size. Extract the value and insert any appropriate assertions regarding
-  // sign/zero extension.
+  // If this is an value smaller than the argument slot size (32-bit for
+  // ILP32D/ILP32F/ILP32S, 64-bit for LP64D/LP64S/LP64F), it has been promoted
+  // in some way to the argument slot size. Extract the value and insert any
+  // appropriate assertions regarding sign/zero extension.
   switch (VA.getLocInfo()) {
   default:
     llvm_unreachable("Unknown loc info!");
@@ -2900,10 +2901,19 @@ static SDValue UnpackFromArgumentSlot(SDValue Val, const CCValAssign &VA,
     Val = DAG.getNode(ISD::TRUNCATE, DL, ValVT, Val);
     break;
   case CCValAssign::SExtUpper:
-  case CCValAssign::SExt:
-    Val = DAG.getNode(ISD::AssertSext, DL, LocVT, Val, DAG.getValueType(ValVT));
-    Val = DAG.getNode(ISD::TRUNCATE, DL, ValVT, Val);
+  case CCValAssign::SExt: {
+    if ((ArgVT == MVT::i1) || (ArgVT == MVT::i8) || (ArgVT == MVT::i16)) {
+      SDValue SubReg = DAG.getTargetConstant(LoongArch::sub_32, DL, MVT::i32);
+      Val = SDValue(DAG.getMachineNode(TargetOpcode::EXTRACT_SUBREG, DL, ValVT,
+                                       Val, SubReg),
+                    0);
+    } else {
+      Val =
+          DAG.getNode(ISD::AssertSext, DL, LocVT, Val, DAG.getValueType(ValVT));
+      Val = DAG.getNode(ISD::TRUNCATE, DL, ValVT, Val);
+    }
     break;
+  }
   case CCValAssign::ZExtUpper:
   case CCValAssign::ZExt:
     Val = DAG.getNode(ISD::AssertZext, DL, LocVT, Val, DAG.getValueType(ValVT));
@@ -2994,22 +3004,19 @@ SDValue LoongArchTargetLowering::LowerFormalArguments(
           (RegVT == MVT::i64 && ValVT == MVT::f64) ||
           (RegVT == MVT::f64 && ValVT == MVT::i64))
         ArgValue = DAG.getNode(ISD::BITCAST, DL, ValVT, ArgValue);
-      else if (ABI.IsLP32() && RegVT == MVT::i32 &&
-               ValVT == MVT::f64) {
-        // TODO: lp32
+      else if ((ABI.IsILP32D() || ABI.IsILP32F() || ABI.IsILP32S()) &&
+               RegVT == MVT::i32 && ValVT == MVT::f64) {
+        // TODO
+        llvm_unreachable("Unimplemented ABI");
       }
 
       InVals.push_back(ArgValue);
     } else { // VA.isRegLoc()
       MVT LocVT = VA.getLocVT();
 
-      if (ABI.IsLP32()) {
-        // We ought to be able to use LocVT directly but LP32 sets it to i32
-        // when allocating floating point values to integer registers.
-        // This shouldn't influence how we load the value into registers unless
-        // we are targeting softfloat.
-        if (VA.getValVT().isFloatingPoint() && !Subtarget.useSoftFloat())
-          LocVT = VA.getValVT();
+      if (ABI.IsILP32D() || ABI.IsILP32F() || ABI.IsILP32S()) {
+        // TODO
+        llvm_unreachable("Unimplemented ABI");
       }
 
       // sanity check
@@ -3040,7 +3047,7 @@ SDValue LoongArchTargetLowering::LowerFormalArguments(
       unsigned Reg = LoongArchFI->getSRetReturnReg();
       if (!Reg) {
         Reg = MF.getRegInfo().createVirtualRegister(
-            getRegClassFor(ABI.IsLP64D() ? MVT::i64 : MVT::i32));
+            getRegClassFor(Subtarget.is64Bit() ? MVT::i64 : MVT::i32));
         LoongArchFI->setSRetReturnReg(Reg);
       }
       SDValue Copy = DAG.getCopyToReg(DAG.getEntryNode(), DL, Reg, InVals[i]);
@@ -3078,8 +3085,8 @@ LoongArchTargetLowering::CanLowerReturn(CallingConv::ID CallConv,
 
 bool
 LoongArchTargetLowering::shouldSignExtendTypeInLibCall(EVT Type, bool IsSigned) const {
-  if ((ABI.IsLPX32() || ABI.IsLP64D()) && Type == MVT::i32)
-      return true;
+  if (Subtarget.is64Bit() && Type == MVT::i32)
+    return true;
 
   return IsSigned;
 }
@@ -3166,7 +3173,7 @@ LoongArchTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
       llvm_unreachable("sret virtual register not created in the entry block");
     SDValue Val =
         DAG.getCopyFromReg(Chain, DL, Reg, getPointerTy(DAG.getDataLayout()));
-    unsigned A0 = ABI.IsLP64D() ? LoongArch::A0_64 : LoongArch::A0;
+    unsigned A0 = Subtarget.is64Bit() ? LoongArch::A0_64 : LoongArch::A0;
 
     Chain = DAG.getCopyToReg(Chain, DL, A0, Val, Flag);
     Flag = Chain.getValue(1);
@@ -3284,7 +3291,7 @@ static std::pair<bool, bool> parsePhysicalReg(StringRef C, StringRef &Prefix,
 
 EVT LoongArchTargetLowering::getTypeForExtReturn(LLVMContext &Context, EVT VT,
                                             ISD::NodeType) const {
-  bool Cond = !Subtarget.isABI_LP32() && VT.getSizeInBits() == 32;
+  bool Cond = Subtarget.is64Bit() && VT.getSizeInBits() == 32;
   EVT MinVT = getRegisterType(Context, Cond ? MVT::i64 : MVT::i32);
   return VT.bitsLT(MinVT) ? MinVT : VT;
 }
@@ -3306,10 +3313,10 @@ parseRegForInlineAsmConstraint(StringRef C, MVT VT) const {
     return std::make_pair(0U, nullptr);
 
   if (Prefix == "$f") { // Parse $f0-$f31.
-    // If the size of FP registers is 64-bit or Reg is an even number, select
-    // the 64-bit register class. Otherwise, select the 32-bit register class.
+    // If the size of FP registers is 64-bit, select the 64-bit register class.
+    // Otherwise, select the 32-bit register class.
     if (VT == MVT::Other)
-      VT = (Subtarget.isFP64bit() || !(Reg % 2)) ? MVT::f64 : MVT::f32;
+      VT = Subtarget.hasBasicD() ? MVT::f64 : MVT::f32;
 
     RC = getRegClassFor(VT);
   }
@@ -3709,9 +3716,9 @@ void LoongArchTargetLowering::writeVarArgRegs(std::vector<SDValue> &OutChains,
   LoongArchFI->setVarArgsFrameIndex(FI);
 
   // Copy the integer registers that have not been used for argument passing
-  // to the argument register save area. For LP32, the save area is allocated
-  // in the caller's stack frame, while for LPX32/LP64D, it is allocated in the
-  // callee's stack frame.
+  // to the argument register save area. For ILP32D/ILP32F/ILP32S, the save area
+  // is allocated in the caller's stack frame, while for LP64D/LP64S/LP64F, it
+  // is allocated in the callee's stack frame.
   for (unsigned I = Idx; I < ArgRegs.size();
        ++I, VaArgOffset += RegSizeInBytes) {
     unsigned Reg = addLiveIn(MF, ArgRegs[I], RC);
@@ -3740,9 +3747,12 @@ void LoongArchTargetLowering::HandleByVal(CCState *State, unsigned &Size,
   if (State->getCallingConv() != CallingConv::Fast) {
     unsigned RegSizeInBytes = Subtarget.getGPRSizeInBytes();
     ArrayRef<MCPhysReg> IntArgRegs = ABI.GetByValArgRegs();
-    // FIXME: The LP32 case actually describes no shadow registers.
+    // FIXME: The ILP32D/ILP32F/ILP32S case actually describes no shadow
+    // registers.
     const MCPhysReg *ShadowRegs =
-        ABI.IsLP32() ? IntArgRegs.data() : LoongArch64DPRegs;
+        (ABI.IsILP32D() || ABI.IsILP32F() || ABI.IsILP32S())
+            ? IntArgRegs.data()
+            : LoongArch64DPRegs;
 
     // We used to check the size as well but we can't do that anymore since
     // CCState::HandleByVal() rounds up the size after calling this function.

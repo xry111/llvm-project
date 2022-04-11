@@ -38,9 +38,7 @@ LoongArchSubtarget::LoongArchSubtarget(const Triple &TT, StringRef CPU,
                                        const LoongArchTargetMachine &TM,
                                        MaybeAlign StackAlignOverride)
     : LoongArchGenSubtargetInfo(TT, CPU, CPU, FS),
-      HasLA64(false),
-      IsSoftFloat(false), IsSingleFloat(false),
-      IsFP64bit(false),
+      HasLA64(false), HasBasicF(false), HasBasicD(false),
       StackAlignOverride(StackAlignOverride),
       TM(TM), TargetTriple(TT), TSInfo(),
       InstrInfo(initializeSubtargetDependencies(CPU, TuneCPU, FS, TM)),
@@ -48,11 +46,8 @@ LoongArchSubtarget::LoongArchSubtarget(const Triple &TT, StringRef CPU,
       TLInfo(TM, *this) {
 
   // Check if Architecture and ABI are compatible.
-  assert(((!is64Bit() && isABI_LP32()) ||
-          (is64Bit() && (isABI_LPX32() || isABI_LP64D()))) &&
+  assert(((!is64Bit() && isABI_ILP32()) || (is64Bit() && isABI_LP64())) &&
          "Invalid  Arch & ABI pair.");
-
-  assert(isFP64bit());
 }
 
 bool LoongArchSubtarget::isPositionIndependent() const {
@@ -86,10 +81,10 @@ LoongArchSubtarget::initializeSubtargetDependencies(StringRef CPU,
 
   if (StackAlignOverride)
     stackAlignment = *StackAlignOverride;
-  else if (isABI_LPX32() || isABI_LP64D())
+  else if (isABI_LP64())
     stackAlignment = Align(16);
   else {
-    assert(isABI_LP32() && "Unknown ABI for stack alignment!");
+    assert(isABI_ILP32() && "Unknown ABI for stack alignment!");
     stackAlignment = Align(8);
   }
 
@@ -101,6 +96,15 @@ Reloc::Model LoongArchSubtarget::getRelocationModel() const {
 }
 
 bool LoongArchSubtarget::isABI_LP64D() const { return getABI().IsLP64D(); }
-bool LoongArchSubtarget::isABI_LPX32() const { return getABI().IsLPX32(); }
-bool LoongArchSubtarget::isABI_LP32() const { return getABI().IsLP32(); }
+bool LoongArchSubtarget::isABI_LP64S() const { return getABI().IsLP64S(); }
+bool LoongArchSubtarget::isABI_LP64F() const { return getABI().IsLP64F(); }
+bool LoongArchSubtarget::isABI_LP64() const {
+  return isABI_LP64D() || isABI_LP64S() || isABI_LP64F();
+}
+bool LoongArchSubtarget::isABI_ILP32D() const { return getABI().IsILP32D(); }
+bool LoongArchSubtarget::isABI_ILP32F() const { return getABI().IsILP32F(); }
+bool LoongArchSubtarget::isABI_ILP32S() const { return getABI().IsILP32S(); }
+bool LoongArchSubtarget::isABI_ILP32() const {
+  return isABI_ILP32D() || isABI_ILP32F() || isABI_ILP32S();
+}
 const LoongArchABIInfo &LoongArchSubtarget::getABI() const { return TM.getABI(); }

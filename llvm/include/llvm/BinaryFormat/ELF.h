@@ -677,10 +677,13 @@ enum : unsigned {
   // FIXME: Change these when all ABIs definition were finalized.
   // See current definitions:
   // https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html#_e_flags_identifies_abi_type_and_version
-  EF_LARCH_ABI = 0x0003,
-  EF_LARCH_ABI_LP32 = 0x0001,
-  EF_LARCH_ABI_XLP32 = 0x0002,
-  EF_LARCH_ABI_LP64D = 0x0003,
+  EF_LARCH_BASE_ABI = 0x3,
+  EF_LARCH_BASE_ABI_ILP32S = 0x5,
+  EF_LARCH_BASE_ABI_ILP32F = 0x6,
+  EF_LARCH_BASE_ABI_ILP32D = 0x7,
+  EF_LARCH_BASE_ABI_LP64S = 0x1,
+  EF_LARCH_BASE_ABI_LP64F = 0x2,
+  EF_LARCH_BASE_ABI_LP64D = 0x3
 };
 
 // ELF Relocation types for LoongArch

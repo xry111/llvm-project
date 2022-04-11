@@ -198,6 +198,12 @@ def GPR64 : RegisterClass<"LoongArch", [i64], 64, (add
   // Reserved
   T9_64, FP_64)>;
 
+def GPRTC64 : RegisterClass<"LoongArch", [i64], 64, (add
+  // Return Values and Arguments
+  A0_64, A1_64, A2_64, A3_64, A4_64, A5_64, A6_64, A7_64,
+  // Not preserved across procedure calls
+  T0_64, T1_64, T2_64, T3_64, T4_64, T5_64, T6_64, T7_64, T8_64)>;
+
 /// FP Registers.
 def FGR64 : RegisterClass<"LoongArch", [f64], 64, (sequence "F%u_64", 0, 31)>;
 def FGR32 : RegisterClass<"LoongArch", [f32], 64, (sequence "F%u", 0, 31)>;
@@ -256,6 +262,10 @@ def GPR32Opnd : RegisterOperand<GPR32> {
 }
 
 def GPR64Opnd : RegisterOperand<GPR64> {
+  let ParserMatchClass = GPR64AsmOperand;
+}
+
+def GPRTC64Opnd : RegisterOperand<GPRTC64> {
   let ParserMatchClass = GPR64AsmOperand;
 }
 

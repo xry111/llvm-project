@@ -59,7 +59,7 @@ static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
 
 std::unique_ptr<MCObjectTargetWriter>
 LoongArchAsmBackend::createObjectTargetWriter() const {
-  return createLoongArchELFObjectWriter(TheTriple, IsLPX32);
+  return createLoongArchELFObjectWriter(TheTriple);
 }
 
 /// ApplyFixup - Apply the \p Value for given \p Fixup into the provided
@@ -230,6 +230,5 @@ MCAsmBackend *llvm::createLoongArchAsmBackend(const Target &T,
                                               const MCTargetOptions &Options) {
   LoongArchABIInfo ABI = LoongArchABIInfo::computeTargetABI(
                            STI.getTargetTriple(), STI.getCPU(), Options);
-  return new LoongArchAsmBackend(T, MRI, STI.getTargetTriple(), STI.getCPU(),
-                                 ABI.IsLPX32());
+  return new LoongArchAsmBackend(T, MRI, STI.getTargetTriple(), STI.getCPU());
 }

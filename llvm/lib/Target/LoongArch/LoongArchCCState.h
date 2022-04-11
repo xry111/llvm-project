@@ -29,12 +29,12 @@ public:
 
 private:
   /// Identify lowered values that originated from f128 arguments and record
-  /// this for use by RetCC_LoongArchLP64LPX32.
+  /// this for use by RetCC_LoongArchLP64.
   void PreAnalyzeCallResultForF128(const SmallVectorImpl<ISD::InputArg> &Ins,
                                    const Type *RetTy, const char * Func);
 
   /// Identify lowered values that originated from f128 arguments and record
-  /// this for use by RetCC_LoongArchLP64LPX32.
+  /// this for use by RetCC_LoongArchLP64.
   void PreAnalyzeReturnForF128(const SmallVectorImpl<ISD::OutputArg> &Outs);
 
   /// Identify lowered values that originated from f128 arguments and record
@@ -45,7 +45,7 @@ private:
                          const char *Func);
 
   /// Identify lowered values that originated from f128 arguments and record
-  /// this for use by RetCC_LoongArchLP64LPX32.
+  /// this for use by RetCC_LoongArchLP64.
   void
   PreAnalyzeFormalArgumentsForF128(const SmallVectorImpl<ISD::InputArg> &Ins);
 

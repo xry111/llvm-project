@@ -26,11 +26,10 @@ class LLVM_LIBRARY_VISIBILITY LoongArchTargetInfo : public TargetInfo {
   void setDataLayout() {
     StringRef Layout;
 
-    if (ABI == "lp32")
-      Layout = "m:m-p:32:32-i8:8:32-i16:16:32-i64:64-n32-S64";
-    else if (ABI == "lpx32")
-      Layout = "m:e-p:32:32-i8:8:32-i16:16:32-i64:64-n32:64-S128";
-    else if (ABI == "lp64d")
+    if (ABI == "ilp32d" || ABI == "ilp32f" || ABI == "ilp32s")
+      // TODO
+      llvm_unreachable("Unimplemented ABI");
+    else if (ABI == "lp64d" || ABI == "lp64s" || ABI == "lp64f")
       Layout = "m:e-i8:8:32-i16:16:32-i64:64-n32:64-S128";
     else
       llvm_unreachable("Invalid ABI");
@@ -40,23 +39,20 @@ class LLVM_LIBRARY_VISIBILITY LoongArchTargetInfo : public TargetInfo {
 
   static const Builtin::Info BuiltinInfo[];
   std::string CPU;
-  bool IsSingleFloat;
-  enum LoongArchFloatABI { HardFloat, SoftFloat } FloatABI;
+  bool HasBasicF;
+  bool HasBasicD;
 
 protected:
-  enum FPModeEnum { FP32, FP64 } FPMode;
   std::string ABI;
 
 public:
   LoongArchTargetInfo(const llvm::Triple &Triple, const TargetOptions &)
-      : TargetInfo(Triple),
-        IsSingleFloat(false),
-        FloatABI(HardFloat),
-        FPMode(FP64) {
+      : TargetInfo(Triple), HasBasicF(false), HasBasicD(false) {
     TheCXXABI.set(TargetCXXABI::GenericLoongArch);
 
     if (Triple.isLoongArch32())
-      setABI("lp32");
+      // TODO
+      llvm_unreachable("Unimplemented triple");
     else
       setABI("lp64d");
 
@@ -70,20 +66,12 @@ public:
   StringRef getABI() const override { return ABI; }
 
   bool setABI(const std::string &Name) override {
-    if (Name == "lp32") {
-      setLP32ABITypes();
-      ABI = Name;
-      return true;
+    if (Name == "ilp32d" || Name == "ilp32f" || Name == "ilp32s") {
+      // TODO
+      llvm_unreachable("Unimplemented ABI");
     }
 
-    if (Name == "lpx32") {
-      //setLPX32ABITypes();
-      //ABI = Name;
-      //return true;
-      //TODO: implement
-      return false;
-    }
-    if (Name == "lp64d") {
+    if (Name == "lp64d" || Name == "lp64s" || Name == "lp64f") {
       setLP64ABITypes();
       ABI = Name;
       return true;
@@ -91,52 +79,17 @@ public:
     return false;
   }
 
-  void setLP32ABITypes() {
-    Int64Type = SignedLongLong;
-    IntMaxType = Int64Type;
-    LongDoubleFormat = &llvm::APFloat::IEEEdouble();
-    LongDoubleWidth = LongDoubleAlign = 64;
-    LongWidth = LongAlign = 32;
-    MaxAtomicPromoteWidth = MaxAtomicInlineWidth = 32;
-    PointerWidth = PointerAlign = 32;
-    PtrDiffType = SignedInt;
-    SizeType = UnsignedInt;
-    SuitableAlign = 64;
-  }
-
-  void setLPX32LP64ABITypes() {
+  void setLP64ABITypes() {
     LongDoubleWidth = LongDoubleAlign = 128;
     LongDoubleFormat = &llvm::APFloat::IEEEquad();
-    if (getTriple().isOSFreeBSD()) {
-      LongDoubleWidth = LongDoubleAlign = 64;
-      LongDoubleFormat = &llvm::APFloat::IEEEdouble();
-    }
     MaxAtomicPromoteWidth = MaxAtomicInlineWidth = 64;
     SuitableAlign = 128;
-  }
-
-  void setLP64ABITypes() {
-    setLPX32LP64ABITypes();
-    if (getTriple().isOSOpenBSD()) {
-      Int64Type = SignedLongLong;
-    } else {
-      Int64Type = SignedLong;
-    }
+    Int64Type = SignedLong;
     IntMaxType = Int64Type;
     LongWidth = LongAlign = 64;
     PointerWidth = PointerAlign = 64;
     PtrDiffType = SignedLong;
     SizeType = UnsignedLong;
-  }
-
-  void setLPX32ABITypes() {
-    setLPX32LP64ABITypes();
-    Int64Type = SignedLongLong;
-    IntMaxType = Int64Type;
-    LongWidth = LongAlign = 32;
-    PointerWidth = PointerAlign = 32;
-    PtrDiffType = SignedInt;
-    SizeType = UnsignedInt;
   }
 
   bool isValidCPUName(StringRef Name) const override;
@@ -271,19 +224,14 @@ public:
 
   bool handleTargetFeatures(std::vector<std::string> &Features,
                             DiagnosticsEngine &Diags) override {
-    IsSingleFloat = false;
-    FloatABI = HardFloat;
-    FPMode = FP64;
+    HasBasicF = false;
+    HasBasicD = false;
 
     for (const auto &Feature : Features) {
-      if (Feature == "+single-float")
-        IsSingleFloat = true;
-      else if (Feature == "+soft-float")
-        FloatABI = SoftFloat;
-      else if (Feature == "+fp64")
-        FPMode = FP64;
-      else if (Feature == "-fp64")
-        FPMode = FP32;
+      if (Feature == "+f")
+        HasBasicF = true;
+      else if (Feature == "+d")
+        HasBasicD = true;
     }
 
     setDataLayout();
@@ -372,7 +320,8 @@ public:
   }
 
   bool hasInt128Type() const override {
-    return (ABI == "lpx32" || ABI == "lp64d") || getTargetOpts().ForceEnableInt128;
+    return (ABI == "lp64d" || ABI == "lp64s" || ABI == "lp64f") ||
+           getTargetOpts().ForceEnableInt128;
   }
 
   bool validateTarget(DiagnosticsEngine &Diags) const override;

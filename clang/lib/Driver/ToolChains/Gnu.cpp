@@ -832,25 +832,17 @@ void tools::gnutools::Assembler::ConstructJob(Compilation &C,
     StringRef CPUName;
     StringRef ABIName;
     loongarch::getLoongArchCPUAndABI(Args, getToolChain().getTriple(), CPUName, ABIName);
-    ABIName = loongarch::getGnuCompatibleLoongArchABIName(ABIName);
 
     //FIXME: Currently gnu as doesn't support -march
     //CmdArgs.push_back("-march=loongarch");
     //CmdArgs.push_back(CPUName.data());
 
-    //FIXME: modify loongarch::getGnuCompatibleLoongArchABIName()
     CmdArgs.push_back("-mabi=lp64d");
-    //CmdArgs.push_back(ABIName.data());
 
     // -mno-shared should be emitted unless -fpic, -fpie, -fPIC, -fPIE,
     // or -mshared (not implemented) is in effect.
     if (RelocationModel == llvm::Reloc::Static)
       CmdArgs.push_back("-mno-shared");
-
-    // LLVM doesn't support -mplt yet and acts as if it is always given.
-    // However, -mplt has no effect with the LP64D ABI.
-    if (ABIName != "64")
-      CmdArgs.push_back("-call_nonpic");
 
     break;
 

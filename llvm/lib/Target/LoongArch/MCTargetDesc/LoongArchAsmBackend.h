@@ -30,13 +30,11 @@ class Target;
 
 class LoongArchAsmBackend : public MCAsmBackend {
   Triple TheTriple;
-  bool IsLPX32;
 
 public:
-  LoongArchAsmBackend(const Target &T, const MCRegisterInfo &MRI, const Triple &TT,
-                 StringRef CPU, bool LPX32)
-      : MCAsmBackend(support::little),
-        TheTriple(TT), IsLPX32(LPX32) {
+  LoongArchAsmBackend(const Target &T, const MCRegisterInfo &MRI,
+                      const Triple &TT, StringRef CPU)
+      : MCAsmBackend(support::little), TheTriple(TT) {
     assert(TT.isLittleEndian());
   }
 

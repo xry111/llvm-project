@@ -622,10 +622,9 @@ static llvm::Triple computeTargetTriple(const Driver &D,
   A = Args.getLastArg(options::OPT_mabi_EQ);
   if (A && Target.isLoongArch()) {
     StringRef ABIName = A->getValue();
-    if (ABIName == "lp32") {
-      Target = Target.get32BitArchVariant();
-      if (Target.getEnvironment() == llvm::Triple::GNUABI64)
-        Target.setEnvironment(llvm::Triple::GNU);
+    if (ABIName == "ilp32d" || ABIName == "ilp32f" || ABIName == "ilp32s") {
+      // TODO
+      llvm_unreachable("Unimplemented ABI");
     } else if (ABIName == "lp64d") {
       Target = Target.get64BitArchVariant();
       if (Target.getEnvironment() == llvm::Triple::GNU)

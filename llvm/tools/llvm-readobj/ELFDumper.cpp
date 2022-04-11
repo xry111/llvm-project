@@ -1613,9 +1613,11 @@ const EnumEntry<unsigned> ElfHeaderAVRFlags[] = {
 };
 
 const EnumEntry<unsigned> ElfHeaderLoongArchFlags[] = {
-  ENUM_ENT(EF_LARCH_ABI_LP64D, "LP64D")
-  // FIXME: Change these and add more flags in future when all ABIs definition were finalized.
-  // See current definitions:
+  ENUM_ENT(EF_LARCH_BASE_ABI_LP64D, "LP64D"),
+  ENUM_ENT(EF_LARCH_BASE_ABI_LP64S, "LP64S"),
+  ENUM_ENT(EF_LARCH_BASE_ABI_LP64F, "LP64F"),
+  // FIXME: Change these and add more flags in future when all ABIs definition
+  // were finalized. See current definitions:
   // https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html#_e_flags_identifies_abi_type_and_version
 };
 
@@ -3328,7 +3330,8 @@ template <class ELFT> void GNUELFDumper<ELFT>::printFileHeaders() {
     ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderAVRFlags),
                           unsigned(ELF::EF_AVR_ARCH_MASK));
   else if (e.e_machine == EM_LOONGARCH)
-    ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderLoongArchFlags));
+    ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderLoongArchFlags),
+                          unsigned(ELF::EF_LARCH_BASE_ABI));
   Str = "0x" + to_hexString(e.e_flags);
   if (!ElfFlags.empty())
     Str = Str + ", " + ElfFlags;
@@ -6417,7 +6420,8 @@ template <class ELFT> void LLVMELFDumper<ELFT>::printFileHeaders() {
       W.printFlags("Flags", E.e_flags, makeArrayRef(ElfHeaderAVRFlags),
                    unsigned(ELF::EF_AVR_ARCH_MASK));
     else if (E.e_machine == EM_LOONGARCH)
-      W.printFlags("Flags", E.e_flags, makeArrayRef(ElfHeaderLoongArchFlags));
+      W.printFlags("Flags", E.e_flags, makeArrayRef(ElfHeaderLoongArchFlags),
+                   unsigned(ELF::EF_LARCH_BASE_ABI));
     else
       W.printFlags("Flags", E.e_flags);
     W.printNumber("HeaderSize", E.e_ehsize);

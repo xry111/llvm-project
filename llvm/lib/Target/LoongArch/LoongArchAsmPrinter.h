@@ -75,6 +75,9 @@ private:
   void emitPseudoIndirectBranch(MCStreamer &OutStreamer,
                                 const MachineInstr *MI);
 
+  void emitPseudoTailBranch(MCStreamer &OutStreamer,
+                            const MachineInstr *MI);
+
   // lowerOperand - Convert a MachineOperand into the equivalent MCOperand.
   bool lowerOperand(const MachineOperand &MO, MCOperand &MCOp);
 

@@ -8203,6 +8203,8 @@ ABIArgInfo LoongArchABIInfo::classifyArgumentType(QualType Ty, bool IsFixed,
     bool IsCandidate =
         detectFPCCEligibleStruct(Ty, Field1Ty, Field1Off, Field2Ty, Field2Off,
                                  NeededArgGPRs, NeededArgFPRs);
+    if (Ty->isStructureOrClassType() && isAggregateTypeForABI(Ty))
+      IsCandidate = false;
     if (IsCandidate && NeededArgGPRs <= ArgGPRsLeft &&
         NeededArgFPRs <= ArgFPRsLeft) {
       ArgGPRsLeft -= NeededArgGPRs;
@@ -8210,7 +8212,8 @@ ABIArgInfo LoongArchABIInfo::classifyArgumentType(QualType Ty, bool IsFixed,
       return coerceAndExpandFPCCEligibleStruct(Field1Ty, Field1Off, Field2Ty,
                                                Field2Off);
     }
-  } else if (Ty->isStructureOrClassType() && Size == 128 && isAggregateTypeForABI(Ty)) {
+  } else if (Ty->isStructureOrClassType() && Size == 128 &&
+             isAggregateTypeForABI(Ty)) {
     uint64_t Offset = 8;
     uint64_t OrigOffset = Offset;
     uint64_t TySize = getContext().getTypeSize(Ty);

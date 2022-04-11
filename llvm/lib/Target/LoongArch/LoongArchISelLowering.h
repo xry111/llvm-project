@@ -211,12 +211,11 @@ class TargetRegisterClass;
     /// This function fills Ops, which is the list of operands that will later
     /// be used when a function call node is created. It also generates
     /// copyToReg nodes to set up argument registers.
-    void
-    getOpndList(SmallVectorImpl<SDValue> &Ops,
-                std::deque<std::pair<unsigned, SDValue>> &RegsToPass,
-                bool IsPICCall, bool GlobalOrExternal, bool InternalLinkage,
-                bool IsCallReloc, CallLoweringInfo &CLI, SDValue Callee,
-                SDValue Chain) const;
+    void getOpndList(SmallVectorImpl<SDValue> &Ops,
+                     std::deque<std::pair<unsigned, SDValue>> &RegsToPass,
+                     bool IsPICCall, bool GlobalOrExternal, bool IsCallReloc,
+                     CallLoweringInfo &CLI, SDValue Callee, SDValue Chain,
+                     bool IsTailCall) const;
 
     SDValue lowerLOAD(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerSTORE(SDValue Op, SelectionDAG &DAG) const;
@@ -272,7 +271,6 @@ class TargetRegisterClass;
     SDValue lowerSETCC(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerVASTART(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerVAARG(SDValue Op, SelectionDAG &DAG) const;
-    SDValue lowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerFABS(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
@@ -287,6 +285,7 @@ class TargetRegisterClass;
     /// for tail call optimization.
     bool
     isEligibleForTailCallOptimization(const CCState &CCInfo,
+                                      CallLoweringInfo &CLI, MachineFunction &MF,
                                       unsigned NextStackOffset,
                                       const LoongArchFunctionInfo &FI) const;
 

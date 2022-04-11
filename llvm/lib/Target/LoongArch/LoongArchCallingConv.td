@@ -76,10 +76,10 @@ def RetCC_F128 : CallingConv<[
 ]>;
 
 //===----------------------------------------------------------------------===//
-// LoongArch LP32 Calling Convention
+// LoongArch ILP32 Calling Convention
 //===----------------------------------------------------------------------===//
 
-def CC_LoongArchLP32 : CallingConv<[
+def CC_LoongArchILP32 : CallingConv<[
   // Promote i8/i16 arguments to i32.
   CCIfType<[i1, i8, i16], CCPromoteToType<i32>>,
 
@@ -92,51 +92,50 @@ def CC_LoongArchLP32 : CallingConv<[
   CCIfType<[f64], CCAssignToStack<8, 8>>
 ]>;
 
-// Only the return rules are defined here for LP32. The rules for argument
+// Only the return rules are defined here for 32-bit ABI. The rules for argument
 // passing are defined in LoongArchISelLowering.cpp.
-def RetCC_LoongArchLP32 : CallingConv<[
+def RetCC_LoongArchILP32 : CallingConv<[
   // Promote i1/i8/i16 return values to i32.
   CCIfType<[i1, i8, i16], CCPromoteToType<i32>>,
 
-  // i32 are returned in registers V0, V1, A0, A1, unless the original return
+  // i32 are returned in registers A0, A1, unless the original return
   // type was a vector of floats.
   CCIfOrigArgWasNotVectorFloat<CCIfType<[i32],
                                         CCAssignToReg<[A0, A1]>>>,
 
-  // f32 are returned in registers F0, F2
+  // f32 are returned in registers F0, F1
   CCIfType<[f32], CCAssignToReg<[F0, F1]>>,
 
-  // f64 arguments are returned in F0_64 and F2_64 in FP64bit mode or
-  // in F0 and F1 in FP32bit mode.
-  CCIfType<[f64], CCIfSubtarget<"isFP64bit()", CCAssignToReg<[F0_64, F1_64]>>>
+  // f64 arguments are returned in F0_64 and F1_64 in hasBasicD mode.
+  CCIfType<[f64], CCIfSubtarget<"hasBasicD()", CCAssignToReg<[F0_64, F1_64]>>>
 ]>;
 
-def CC_LoongArchLP32_FP32 : CustomCallingConv;
-def CC_LoongArchLP32_FP64 : CustomCallingConv;
+def CC_LoongArchILP32_FP32 : CustomCallingConv;
+def CC_LoongArchILP32_FP64 : CustomCallingConv;
 def CC_LoongArch_F128 : CustomCallingConv;
 
-def CC_LoongArchLP32_FP : CallingConv<[
-  CCIfSubtargetNot<"isFP64bit()", CCDelegateTo<CC_LoongArchLP32_FP32>>,
-  CCIfSubtarget<"isFP64bit()", CCDelegateTo<CC_LoongArchLP32_FP64>>
+def CC_LoongArchILP32_FP : CallingConv<[
+  CCIfSubtargetNot<"hasBasicD()", CCDelegateTo<CC_LoongArchILP32_FP32>>,
+  CCIfSubtarget<"hasBasicD()", CCDelegateTo<CC_LoongArchILP32_FP64>>
 ]>;
 
 //===----------------------------------------------------------------------===//
-// LoongArch LPX32/LP64 Calling Convention
+// LoongArch LP64 Calling Convention
 //===----------------------------------------------------------------------===//
 
-def CC_LoongArchLP64LPX32_SoftFloat : CallingConv<[
+def CC_LoongArchLP64_SoftFloat : CallingConv<[
   CCAssignToReg<[A0, A1, A2, A3,
                  A4, A5, A6, A7]>,
   CCAssignToStack<4, 8>
 ]>;
 
-def CC_LoongArchLP64LPX32 : CallingConv<[
+def CC_LoongArchLP64 : CallingConv<[
 
   // All integers (except soft-float integers) are promoted to 64-bit.
   CCIfType<[i8, i16, i32], CCIfOrigArgWasNotFloat<CCPromoteToType<i64>>>,
 
   // The only i32's we have left are soft-float arguments.
-  CCIfSubtarget<"useSoftFloat()", CCIfType<[i32], CCDelegateTo<CC_LoongArchLP64LPX32_SoftFloat>>>,
+  CCIfSubtarget<"useSoftFloat()", CCIfType<[i32], CCDelegateTo<CC_LoongArchLP64_SoftFloat>>>,
 
   // Integer arguments are passed in integer registers.
   //CCIfType<[i64], CCAssignToRegWithShadow<[A0_64, A1_64, A2_64, A3_64,
@@ -170,9 +169,9 @@ def CC_LoongArchLP64LPX32 : CallingConv<[
          CCAssignToStack<32, 32>>
 ]>;
 
-// LPX32/LP64 variable arguments.
+// LP64 variable arguments.
 // All arguments are passed in integer registers.
-def CC_LoongArchLP64LPX32_VarArg : CallingConv<[
+def CC_LoongArchLP64_VarArg : CallingConv<[
   // All integers are promoted to 64-bit.
   CCIfType<[i8, i16, i32], CCPromoteToType<i64>>,
 
@@ -188,7 +187,7 @@ def CC_LoongArchLP64LPX32_VarArg : CallingConv<[
   CCIfType<[i64, f64], CCAssignToStack<8, 8>>
 ]>;
 
-def RetCC_LoongArchLP64LPX32 : CallingConv<[
+def RetCC_LoongArchLP64 : CallingConv<[
   // f128 needs to be handled similarly to f32 and f64. However, f128 is not
   // legal and is lowered to i128 which is further lowered to a pair of i64's.
   // This presents us with a problem for the calling convention since hard-float
@@ -197,8 +196,7 @@ def RetCC_LoongArchLP64LPX32 : CallingConv<[
   // pre-analyze (see PreAnalyzeReturnForF128()) step to pass information on
   // whether the result was originally an f128 into the tablegen-erated code.
   //
-  // f128 should only occur for the LP64D ABI where long double is 128-bit. On
-  // LPX32, long double is equivalent to double.
+  // f128 should only occur for the 64-bit ABI where long double is 128-bit.
   CCIfType<[i64], CCIfOrigArgWasF128<CCDelegateTo<RetCC_F128>>>,
 
   CCIfType<[i8, i16, i32, i64], CCIfInReg<CCPromoteToType<i64>>>,
@@ -216,9 +214,8 @@ def RetCC_LoongArchLP64LPX32 : CallingConv<[
 //===----------------------------------------------------------------------===//
 // LoongArch FastCC Calling Convention
 //===----------------------------------------------------------------------===//
-//LP32 has been removed because of not support
 
-def CC_LoongArchLP64LPX32_FastCC : CallingConv<[
+def CC_LoongArchLP64_FastCC : CallingConv<[
   // Integer arguments are passed in integer registers.
   CCIfType<[i64], CCAssignToReg<[A0_64, A1_64, A2_64, A3_64, T0_64, T1_64,
                                  T2_64, T3_64, T4_64, T5_64, T6_64, T7_64,
@@ -249,8 +246,7 @@ def CC_LoongArch_FastCC : CallingConv<[
   // Stack parameter slots for i32 and f32 are 32-bit words and 4-byte aligned.
   CCIfType<[i32, f32], CCAssignToStack<4, 4>>,
 
-//  CCIfSubtarget<"isABI_LP32()", CCDelegateTo<CC_LoongArchLP32_FastCC>>,
-  CCDelegateTo<CC_LoongArchLP64LPX32_FastCC>
+  CCDelegateTo<CC_LoongArchLP64_FastCC>
 ]>;
 
 //===----------------------------------------------------------------------===//
@@ -258,13 +254,12 @@ def CC_LoongArch_FastCC : CallingConv<[
 //===----------------------------------------------------------------------===//
 
 def RetCC_LoongArch : CallingConv<[
-  CCIfSubtarget<"isABI_LPX32()", CCDelegateTo<RetCC_LoongArchLP64LPX32>>,
-  CCIfSubtarget<"isABI_LP64D()", CCDelegateTo<RetCC_LoongArchLP64LPX32>>,
-  CCDelegateTo<RetCC_LoongArchLP32>
+  CCIfSubtarget<"isABI_LP64()", CCDelegateTo<RetCC_LoongArchLP64>>,
+  CCDelegateTo<RetCC_LoongArchILP32>
 ]>;
 
 def CC_LoongArch_ByVal : CallingConv<[
-  CCIfSubtarget<"isABI_LP32()", CCIfByVal<CCPassByVal<4, 4>>>,
+  CCIfSubtarget<"isABI_ILP32()", CCIfByVal<CCPassByVal<4, 4>>>,
   CCIfByVal<CCPassByVal<8, 8>>
 ]>;
 
@@ -281,23 +276,22 @@ def CC_LoongArch_FixedArg : CallingConv<[
   // pre-analyze (see PreAnalyzeFormalArgsForF128()) step to pass information on
   // whether the argument was originally an f128 into the tablegen-erated code.
   //
-  // f128 should only occur for the LP64D ABI where long double is 128-bit. On
-  // LPX32, long double is equivalent to double.
+  // f128 should only occur for the 64-bit ABI where long double is 128-bit.
   CCIfType<[i64],
       CCIfSubtargetNot<"useSoftFloat()",
           CCIfOrigArgWasF128<CCBitConvertToType<i64>>>>,
 
   CCIfCC<"CallingConv::Fast", CCDelegateTo<CC_LoongArch_FastCC>>,
 
-  CCIfSubtarget<"isABI_LP32()", CCDelegateTo<CC_LoongArchLP32_FP>>,
-  CCDelegateTo<CC_LoongArchLP64LPX32>
+  CCIfSubtarget<"isABI_ILP32()", CCDelegateTo<CC_LoongArchILP32_FP>>,
+  CCDelegateTo<CC_LoongArchLP64>
 ]>;
 
 def CC_LoongArch_VarArg : CallingConv<[
   CCIfByVal<CCDelegateTo<CC_LoongArch_ByVal>>,
 
-  CCIfSubtarget<"isABI_LP32()", CCDelegateTo<CC_LoongArchLP32_FP>>,
-  CCDelegateTo<CC_LoongArchLP64LPX32_VarArg>
+  CCIfSubtarget<"isABI_ILP32()", CCDelegateTo<CC_LoongArchILP32_FP>>,
+  CCDelegateTo<CC_LoongArchLP64_VarArg>
 ]>;
 
 def CC_LoongArch : CallingConv<[
@@ -312,22 +306,8 @@ def CC_LoongArch : CallingConv<[
 def CSR_SingleFloatOnly : CalleeSavedRegs<(add (sequence "F%u", 31, 24), RA, FP,
                                                (sequence "S%u", 8, 0))>;
 
-//def CSR_LP32_FPXX : CalleeSavedRegs<(add (sequence "D%u", 15, 10), RA, FP,
-//                                        (sequence "S%u", 8, 0))> {
-//  let OtherPreserved = (add (decimate (sequence "F%u", 30, 20), 2));
-//}
-
-def CSR_LP32 : CalleeSavedRegs<(add (sequence "F%u_64", 31, 24), RA, FP,
+def CSR_ILP32 : CalleeSavedRegs<(add (sequence "F%u_64", 31, 24), RA, FP,
                                    (sequence "S%u", 8, 0))>;
 
-//def CSR_LP32_FP64 :
-//  CalleeSavedRegs<(add (decimate (sequence "D%u_64", 30, 20), 2), RA, FP,
-//                       (sequence "S%u", 8, 0))>;
-
-def CSR_LPX32 : CalleeSavedRegs<(add F20_64, F22_64, F24_64, F26_64, F28_64,
-                                   F30_64, RA_64, FP_64,
-                                   (sequence "S%u_64", 8, 0))>;
-
-//def CSR_LP64 : CalleeSavedRegs<(add (sequence "D%u_64", 31, 24), RA_64, SP_64, FP_64,
 def CSR_LP64 : CalleeSavedRegs<(add (sequence "F%u_64", 31, 24), RA_64, FP_64,
                                    (sequence "S%u_64", 8, 0))>;

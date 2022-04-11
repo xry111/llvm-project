@@ -260,21 +260,16 @@ public:
     return getSTI().getFeatureBits()[LoongArch::Feature64Bit];
   }
 
-  bool isFP64bit() const {
-    return getSTI().getFeatureBits()[LoongArch::FeatureFP64Bit];
-  }
-
   const LoongArchABIInfo &getABI() const { return ABI; }
-  bool isABI_LPX32() const { return ABI.IsLPX32(); }
   bool isABI_LP64D() const { return ABI.IsLP64D(); }
-  bool isABI_LP32() const { return ABI.IsLP32(); }
+  bool isABI_LP64S() const { return ABI.IsLP64S(); }
+  bool isABI_LP64F() const { return ABI.IsLP64F(); }
+  bool isABI_ILP32D() const { return ABI.IsILP32D(); }
+  bool isABI_ILP32F() const { return ABI.IsILP32F(); }
+  bool isABI_ILP32S() const { return ABI.IsILP32S(); }
 
   bool inPicMode() {
     return IsPicEnabled;
-  }
-
-  bool useSoftFloat() const {
-    return getSTI().getFeatureBits()[LoongArch::FeatureSoftFloat];
   }
 
   const MCExpr *createTargetUnaryExpr(const MCExpr *E,
@@ -300,7 +295,7 @@ public:
   /// The exact class is finalized by the render method.
   enum RegKind {
     RegKind_GPR = 1,      /// GPR32 and GPR64 (depending on is64Bit())
-    RegKind_FGR = 2,      /// FGR32, FGR64 (depending on isFP64bit())
+    RegKind_FGR = 2,      /// FGR32, FGR64 (depending on hasBasicD())
     RegKind_FCFR = 4,     /// FCFR
     RegKind_FCSR = 8,     /// FCSR
     RegKind_Numeric = RegKind_GPR | RegKind_FGR | RegKind_FCFR | RegKind_FCSR
@@ -1072,25 +1067,49 @@ bool LoongArchAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
 
   Inst.setLoc(IDLoc);
 
+  // Check branch instructions.
   if (MCID.isBranch() || MCID.isCall()) {
     const unsigned Opcode = Inst.getOpcode();
     MCOperand Offset;
-
+    bool check = true;
+    unsigned OffsetOpndIdx, OffsetOpndWidth;
     switch (Opcode) {
     default:
+      check = false;
       break;
     case LoongArch::BEQ:
     case LoongArch::BNE:
-      assert(MCID.getNumOperands() == 3 && "unexpected number of operands");
-      Offset = Inst.getOperand(2);
-      if (!Offset.isImm())
-        break; // We'll deal with this situation later on when applying fixups.
-      if (!isIntN(17, Offset.getImm()))
-        return Error(IDLoc, "branch target out of range");
-      if (offsetToAlignment(Offset.getImm(),
-                            Align(1LL << 2)))
-        return Error(IDLoc, "branch to misaligned address");
+    case LoongArch::BLT:
+    case LoongArch::BGE:
+    case LoongArch::BLTU:
+    case LoongArch::BGEU:
+      OffsetOpndIdx = 2;
+      OffsetOpndWidth = 16;
       break;
+    case LoongArch::BEQZ:
+    case LoongArch::BNEZ:
+    case LoongArch::BCEQZ:
+    case LoongArch::BCNEZ:
+      OffsetOpndIdx = 1;
+      OffsetOpndWidth = 21;
+      break;
+    case LoongArch::B:
+    case LoongArch::BL:
+      OffsetOpndIdx = 0;
+      OffsetOpndWidth = 26;
+      break;
+    }
+    if (check) {
+      assert(MCID.getNumOperands() == OffsetOpndIdx + 1 &&
+             "unexpected number of operands");
+      Offset = Inst.getOperand(OffsetOpndIdx);
+      // Non-Imm situation will be dealed with later on when applying fixups.
+      if (Offset.isImm()) {
+        if (!isIntN(OffsetOpndWidth + 2, Offset.getImm()))
+          return Error(IDLoc, "branch target out of range");
+        if (offsetToAlignment(Offset.getImm(), Align(1LL << 2)))
+          return Error(IDLoc, "branch to misaligned address");
+      }
     }
   }
 

@@ -115,6 +115,19 @@ void LoongArchAsmPrinter::emitPseudoIndirectBranch(MCStreamer &OutStreamer,
   EmitToStreamer(OutStreamer, TmpInst0);
 }
 
+void LoongArchAsmPrinter::emitPseudoTailBranch(MCStreamer &OutStreamer,
+                                               const MachineInstr *MI) {
+  MCInst TmpInst;
+  TmpInst.setOpcode(LoongArch::B);
+
+  MCOperand MCOp;
+
+  lowerOperand(MI->getOperand(0), MCOp);
+  TmpInst.addOperand(MCOp);
+
+  EmitToStreamer(OutStreamer, TmpInst);
+}
+
 void LoongArchAsmPrinter::emitInstruction(const MachineInstr *MI) {
   LoongArchTargetStreamer &TS = getTargetStreamer();
   unsigned Opc = MI->getOpcode();
@@ -156,6 +169,10 @@ void LoongArchAsmPrinter::emitInstruction(const MachineInstr *MI) {
       emitPseudoIndirectBranch(*OutStreamer, &*I);
       continue;
     }
+    if (I->getOpcode() == LoongArch::PseudoTailReturn){
+      emitPseudoTailBranch(*OutStreamer, &*I);
+      continue;
+    }
 
     // Some instructions are marked as pseudo right now which
     // would make the test fail for the wrong reason but
@@ -187,9 +204,18 @@ void LoongArchAsmPrinter::emitInstruction(const MachineInstr *MI) {
 /// Emit Set directives.
 const char *LoongArchAsmPrinter::getCurrentABIString() const {
   switch (static_cast<LoongArchTargetMachine &>(TM).getABI().GetEnumValue()) {
-  case LoongArchABIInfo::ABI::LP32:  return "abilp32";
-  case LoongArchABIInfo::ABI::LPX32:  return "abilpx32";
-  case LoongArchABIInfo::ABI::LP64D:  return "abilp64d";
+  case LoongArchABIInfo::ABI::ILP32D:
+    return "abiilp32d";
+  case LoongArchABIInfo::ABI::ILP32F:
+    return "abiilp32f";
+  case LoongArchABIInfo::ABI::ILP32S:
+    return "abiilp32s";
+  case LoongArchABIInfo::ABI::LP64D:
+    return "abilp64d";
+  case LoongArchABIInfo::ABI::LP64S:
+    return "abilp64s";
+  case LoongArchABIInfo::ABI::LP64F:
+    return "abilp64f";
   default: llvm_unreachable("Unknown LoongArch ABI");
   }
 }
@@ -459,15 +485,6 @@ void LoongArchAsmPrinter::emitStartOfAsmFile(Module &M) {
   StringRef FS = TM.getTargetFeatureString();
   const LoongArchTargetMachine &MTM = static_cast<const LoongArchTargetMachine &>(TM);
   const LoongArchSubtarget STI(TT, CPU, CPU, FS, MTM, None);
-
-  const LoongArchABIInfo &ABI = MTM.getABI();
-
-  // Tell the assembler which ABI we are using
-  std::string SectionName = std::string(".mdebug.") + getCurrentABIString();
-  OutStreamer->SwitchSection(
-      OutContext.getELFSection(SectionName, ELF::SHT_PROGBITS, 0));
-
-  // TODO: handle O64 ABI
 
   TS.updateABIInfo(STI);
 }

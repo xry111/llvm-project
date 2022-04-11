@@ -213,19 +213,6 @@ LoongArchTargetELFStreamer::LoongArchTargetELFStreamer(MCStreamer &S,
   // cases we don't handle here are covered by LoongArchAsmPrinter.
   Pic = MCA.getContext().getObjectFileInfo()->isPositionIndependent();
 
-  // Set the header flags that we can in the constructor.
-  // FIXME: This is a fairly terrible hack. We set the rest
-  // of these in the destructor. The problem here is two-fold:
-  //
-  // a: Some of the eflags can be set/reset by directives.
-  // b: There aren't any usage paths that initialize the ABI
-  //    pointer until after we initialize either an assembler
-  //    or the target machine.
-  // We can fix this by making the target streamer construct
-  // the ABI, but this is fraught with wide ranging dependency
-  // issues as well.
-  unsigned EFlags = MCA.getELFHeaderEFlags();
-
   // FIXME: Fix a dependency issue by instantiating the ABI object to some
   // default based off the triple. The triple doesn't describe the target
   // fully, but any external user of the API that uses the MCTargetStreamer
@@ -233,11 +220,9 @@ LoongArchTargetELFStreamer::LoongArchTargetELFStreamer(MCStreamer &S,
 
   ABI = LoongArchABIInfo(
       STI.getTargetTriple().getArch() == Triple::ArchType::loongarch32
-          ? LoongArchABIInfo::LP32()
+          ? LoongArchABIInfo::ILP32D()
           : LoongArchABIInfo::LP64D());
 
-  EFlags |= ELF::EF_LARCH_ABI;
-  MCA.setELFHeaderEFlags(EFlags);
 }
 
 void LoongArchTargetELFStreamer::emitLabel(MCSymbol *S) {
@@ -291,12 +276,18 @@ void LoongArchTargetELFStreamer::finish() {
 
   // ABI
   // LP64D does not require any ABI bits.
-  if (getABI().IsLP32())
-    EFlags |= ELF::EF_LARCH_ABI_LP32;
-  else if (getABI().IsLPX32())
-    EFlags |= ELF::EF_LARCH_ABI_XLP32;
-  else
-    EFlags |= ELF::EF_LARCH_ABI_LP64D;
+  if (getABI().IsILP32S())
+    EFlags |= ELF::EF_LARCH_BASE_ABI_ILP32S;
+  else if (getABI().IsILP32F())
+    EFlags |= ELF::EF_LARCH_BASE_ABI_ILP32F;
+  else if (getABI().IsILP32D())
+    EFlags |= ELF::EF_LARCH_BASE_ABI_ILP32D;
+  else if (getABI().IsLP64S())
+    EFlags |= ELF::EF_LARCH_BASE_ABI_LP64S;
+  else if (getABI().IsLP64F())
+    EFlags |= ELF::EF_LARCH_BASE_ABI_LP64F;
+  else if (getABI().IsLP64D())
+    EFlags |= ELF::EF_LARCH_BASE_ABI_LP64D;
 
   MCA.setELFHeaderEFlags(EFlags);
 }

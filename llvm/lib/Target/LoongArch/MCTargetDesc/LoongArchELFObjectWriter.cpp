@@ -178,9 +178,9 @@ unsigned LoongArchELFObjectWriter::getRelocType(MCContext &Ctx,
 }
 
 std::unique_ptr<MCObjectTargetWriter>
-llvm::createLoongArchELFObjectWriter(const Triple &TT, bool IsLPX32) {
+llvm::createLoongArchELFObjectWriter(const Triple &TT) {
   uint8_t OSABI = MCELFObjectTargetWriter::getOSABI(TT.getOS());
-  bool IsLP64 = TT.isArch64Bit() && !IsLPX32;
+  bool IsLP64 = TT.isArch64Bit();
   bool HasRelocationAddend = TT.isArch64Bit();
   return std::make_unique<LoongArchELFObjectWriter>(OSABI, HasRelocationAddend,
                                                 IsLP64);

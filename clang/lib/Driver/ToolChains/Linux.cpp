@@ -481,9 +481,10 @@ std::string Linux::getDynamicLinker(const ArgList &Args) const {
 
   case llvm::Triple::loongarch32:
   case llvm::Triple::loongarch64: {
+    StringRef CPUName, ABIName;
+    tools::loongarch::getLoongArchCPUAndABI(Args, Triple, CPUName, ABIName);
     LibDir = "lib" + tools::loongarch::getLoongArchABILibSuffix(Args, Triple);
-    //TODO: support other ABIs
-    Loader = "ld-linux-loongarch-lp64d.so.1";
+    Loader = ("ld-linux-loongarch-" + ABIName + ".so.1").str();
     break;
   }
 

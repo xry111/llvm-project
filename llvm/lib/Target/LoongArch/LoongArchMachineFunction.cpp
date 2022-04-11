@@ -47,13 +47,4 @@ MachinePointerInfo LoongArchFunctionInfo::callPtrInfo(const GlobalValue *GV) {
   return MachinePointerInfo(MF.getPSVManager().getGlobalValueCallEntry(GV));
 }
 
-int LoongArchFunctionInfo::getMoveF64ViaSpillFI(const TargetRegisterClass *RC) {
-  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
-  if (MoveF64ViaSpillFI == -1) {
-    MoveF64ViaSpillFI = MF.getFrameInfo().CreateStackObject(
-        TRI.getSpillSize(*RC), TRI.getSpillAlign(*RC), false);
-  }
-  return MoveF64ViaSpillFI;
-}
-
 void LoongArchFunctionInfo::anchor() {}

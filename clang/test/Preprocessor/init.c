@@ -2606,3 +2606,33 @@
 // RISCV64-LINUX: #define __unix__ 1
 // RISCV64-LINUX: #define linux 1
 // RISCV64-LINUX: #define unix 1
+
+// RUN: %clang_cc1 -x c -E -dM -ffreestanding -fgnuc-version=4.2.1 -triple=loongarch64 -target-feature +d /dev/null \
+// RUN:   | FileCheck -match-full-lines -check-prefixes=LOONGARCH64,LOONGARCH64-HASBASICD %s
+// RUN: %clang_cc1 -x c -E -dM -ffreestanding -fgnuc-version=4.2.1 -triple=loongarch64 -target-feature +f /dev/null \
+// RUN:   | FileCheck -match-full-lines -check-prefixes=LOONGARCH64,LOONGARCH64-HASBASICF %s
+// RUN: %clang_cc1 -x c -E -dM -ffreestanding -fgnuc-version=4.2.1 -triple=loongarch64 -target-feature -d  -target-feature -f /dev/null \
+// RUN:   | FileCheck -match-full-lines -check-prefixes=LOONGARCH64,LOONGARCH64-SOFT %s
+// RUN: %clang_cc1 -x c -E -dM -ffreestanding -fgnuc-version=4.2.1 -triple=loongarch64 -target-abi lp64s /dev/null \
+// RUN:   | FileCheck -match-full-lines -check-prefixes=LOONGARCH64,LOONGARCH64-LP64S %s
+// RUN: %clang_cc1 -x c -E -dM -ffreestanding -fgnuc-version=4.2.1 -triple=loongarch64 -target-abi lp64f /dev/null \
+// RUN:   | FileCheck -match-full-lines -check-prefixes=LOONGARCH64,LOONGARCH64-LP64F,LOONGARCH64-HARD %s
+// RUN: %clang_cc1 -x c -E -dM -ffreestanding -fgnuc-version=4.2.1 -triple=loongarch64 -target-abi lp64d /dev/null \
+// RUN:   | FileCheck -match-full-lines -check-prefixes=LOONGARCH64,LOONGARCH64-LP64D,LOONGARCH64-HARD %s
+// RUN: %clang_cc1 -x c -E -dM -ffreestanding -fgnuc-version=4.2.1 -triple=loongarch64 /dev/null \
+// RUN:   | FileCheck -match-full-lines -check-prefix=LOONGARCH64 %s
+// LOONGARCH64: #define _LOONGARCH_ARCH "loongarch64"
+// LOONGARCH64: #define _LOONGARCH_SZINT 32
+// LOONGARCH64: #define _LOONGARCH_SZLONG 64
+// LOONGARCH64: #define _LOONGARCH_SZPTR 64
+// LOONGARCH64: #define _LOONGARCH_TUNE "la464"
+// LOONGARCH64: #define __loongarch__ 1
+// LOONGARCH64-LP64D: #define __loongarch_double_float 1
+// LOONGARCH64-HASBASICD: #define __loongarch_frlen 64
+// LOONGARCH64-HASBASICF: #define __loongarch_frlen 32
+// LOONGARCH64-SOFT: #define __loongarch_frlen 0
+// LOONGARCH64: #define __loongarch_grlen 64
+// LOONGARCH64-HARD: #define __loongarch_hard_float 1
+// LOONGARCH64: #define __loongarch_lp64 1
+// LOONGARCH64-LP64F: #define __loongarch_single_float 1
+// LOONGARCH64-LP64S: #define __loongarch_soft_float 1

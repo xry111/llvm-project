@@ -43,8 +43,6 @@ public:
   LoongArchDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx)
       : MCDisassembler(STI, Ctx) {}
 
-  bool isFP64() const { return STI.getFeatureBits()[LoongArch::FeatureFP64Bit]; }
-
   bool is64Bit() const { return STI.getFeatureBits()[LoongArch::Feature64Bit]; }
 
   DecodeStatus getInstruction(MCInst &Instr, uint64_t &Size,

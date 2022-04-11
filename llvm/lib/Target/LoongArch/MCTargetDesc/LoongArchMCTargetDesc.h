@@ -46,7 +46,7 @@ MCAsmBackend *createLoongArchAsmBackend(const Target &T,
                                         const MCTargetOptions &Options);
 
 std::unique_ptr<MCObjectTargetWriter>
-createLoongArchELFObjectWriter(const Triple &TT, bool IsLPX32);
+createLoongArchELFObjectWriter(const Triple &TT);
 
 namespace LoongArch_MC {
 StringRef selectLoongArchCPU(const Triple &TT, StringRef CPU);

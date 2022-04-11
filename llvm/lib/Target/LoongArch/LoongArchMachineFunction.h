@@ -60,8 +60,6 @@ public:
   void setSaveS2() { SaveS2 = true; }
   bool hasSaveS2() const { return SaveS2; }
 
-  int getMoveF64ViaSpillFI(const TargetRegisterClass *RC);
-
 private:
   virtual void anchor();
 
@@ -90,9 +88,6 @@ private:
   // saveS2
   bool SaveS2 = false;
 
-  /// FrameIndex for expanding BuildPairF64 nodes to spill and reload when the
-  /// LP32 FPXX ABI is enabled. -1 is used to denote invalid index.
-  int MoveF64ViaSpillFI = -1;
 };
 
 } // end namespace llvm

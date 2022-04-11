@@ -24,13 +24,13 @@ class PredicateControl {
   list<Predicate> EncodingPredicates = [];
   // Predicates for the GPR size such as is64Bit
   list<Predicate> GPRPredicates = [];
-  // Predicates for the FGR size and layout such as IsFP64bit
+  // Predicates for the FGR size and layout such as HasBasicD
   list<Predicate> FGRPredicates = [];
-  // Predicates for the instruction group membership such as ISA's.
+  // Predicates for the instruction group membership such as ISA's
   list<Predicate> InsnPredicates = [];
-  // Predicate for the ISA extension that an instruction belongs to.
+  // Predicate for the ISA extension that an instruction belongs to
   list<Predicate> ExtPredicate = [];
-  // Predicate for marking the instruction as usable in hard-float mode only.
+  // Predicate for marking the instruction as usable in hard-float mode only
   list<Predicate> HardFloatPredicate = [];
   // Predicates for anything else
   list<Predicate> AdditionalPredicates = [];
@@ -49,18 +49,17 @@ class AdditionalRequires<list<Predicate> preds> {
 }
 
 //===----------------------------------------------------------------------===//
-// LoongArch Subtarget features                                                    //
+// LoongArch Subtarget features                                               //
 //===----------------------------------------------------------------------===//
 
-def FeatureFP64Bit     : SubtargetFeature<"fp64", "IsFP64bit", "true",
-                                "Support 64-bit FP registers">;
-def FeatureSingleFloat : SubtargetFeature<"single-float", "IsSingleFloat",
-                                "true", "Only supports single precision float">;
-def FeatureSoftFloat   : SubtargetFeature<"soft-float", "IsSoftFloat", "true",
-                                "Does not support floating point instructions">;
-def Feature64Bit       : SubtargetFeature<"64bit", "HasLA64", "true",
-                                "Support LA64 ISA",
-                                [FeatureFP64Bit]>;
+def Feature64Bit
+    : SubtargetFeature<"64bit", "HasLA64", "true",
+                       "LA64 Basic Integer and Privilege Instruction Set">;
+def FeatureBasicF : SubtargetFeature<"f", "HasBasicF", "true",
+                                     "'F' (Single-Precision Floating-Point)">;
+def FeatureBasicD : SubtargetFeature<"d", "HasBasicD", "true",
+                                     "'D' (Double-Precision Floating-Point)",
+                                     [FeatureBasicF]>;
 
 //===----------------------------------------------------------------------===//
 // Register File, Calling Conv, Instruction Descriptions

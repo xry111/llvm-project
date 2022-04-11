@@ -23,8 +23,7 @@ def fpimm1 : PatLeaf<(fpimm), [{
   return N->isExactlyValue(+1.0);
 }]>;
 
-def IsNotSoftFloat   : Predicate<"!Subtarget->useSoftFloat()">,
-                       AssemblerPredicate<(all_of FeatureSoftFloat)>;
+def IsNotSoftFloat   : Predicate<"!Subtarget->useSoftFloat()">;
 
 class HARDFLOAT { list<Predicate> HardFloatPredicate = [IsNotSoftFloat]; }
 

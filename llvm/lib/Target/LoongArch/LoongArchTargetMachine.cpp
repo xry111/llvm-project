@@ -53,13 +53,14 @@ static std::string computeDataLayout(const Triple &TT, StringRef CPU,
 
   Ret += "e";
 
-  if (ABI.IsLP32())
-    Ret += "-m:m";
+  if (ABI.IsILP32D() || ABI.IsILP32F() || ABI.IsILP32S())
+    // TODO
+    llvm_unreachable("Unimplemented ABI");
   else
     Ret += "-m:e";
 
   // Pointers are 32 bit on some ABIs.
-  if (!(ABI.IsLP64D()))
+  if (!(ABI.IsLP64D() || ABI.IsLP64S() || ABI.IsLP64F()))
     Ret += "-p:32:32";
 
   // 8 and 16 bit integers only need to have natural alignment, but try to
@@ -69,7 +70,7 @@ static std::string computeDataLayout(const Triple &TT, StringRef CPU,
   // 32 bit registers are always available and the stack is at least 64 bit
   // aligned. On LP64 64 bit registers are also available and the stack is
   // 128 bit aligned.
-  if (ABI.IsLP64D() || ABI.IsLPX32())
+  if (ABI.IsLP64D() || ABI.IsLP64S() || ABI.IsLP64F())
     Ret += "-n32:64-S128";
   else
     Ret += "-n32-S64";
@@ -120,16 +121,6 @@ LoongArchTargetMachine::getSubtargetImpl(const Function &F) const {
   std::string FS =
       FSAttr.isValid() ? FSAttr.getValueAsString().str()
                        : TargetFS;
-
-  // FIXME: This is related to the code below to reset the target options,
-  // we need to know whether or not the soft float flag is set on the
-  // function, so we can enable it as a subtarget feature.
-  bool softFloat =
-      F.hasFnAttribute("use-soft-float") &&
-      F.getFnAttribute("use-soft-float").getValueAsString() == "true";
-
-  if (softFloat)
-    FS += FS.empty() ? "+soft-float" : ",+soft-float";
 
   auto &I = SubtargetMap[CPU + FS];
   if (!I) {

@@ -39,16 +39,13 @@ class LoongArchSubtarget : public LoongArchGenSubtargetInfo {
   // HasLA64 - The target processor has LA64 ISA support.
   bool HasLA64;
 
-  // IsSoftFloat - The target does not support any floating point instructions.
-  bool IsSoftFloat;
+  // HasBasicF - The target restricts the use of hardware floating-point
+  // instructions to 32-bit operations.
+  bool HasBasicF;
 
-  // IsSingleFloat - The target only supports single precision float
-  // point operations. This enable the target to use all 32 32-bit
-  // floating point registers instead of only using even ones.
-  bool IsSingleFloat;
-
-  // IsFP64bit - The target processor has 64-bit floating point registers.
-  bool IsFP64bit;
+  // HasBasicD - The target allows hardware floating-point instructions to
+  // cover both 32-bit and 64-bit operations.
+  bool HasBasicD;
 
   /// The minimum alignment known to hold of the stack frame on
   /// entry to the function and which must be maintained by every function.
@@ -75,9 +72,14 @@ public:
   void getCriticalPathRCs(RegClassVector &CriticalPathRCs) const override;
   CodeGenOpt::Level getOptLevelToEnablePostRAScheduler() const override;
 
+  bool isABI_LP64() const;
   bool isABI_LP64D() const;
-  bool isABI_LPX32() const;
-  bool isABI_LP32() const;
+  bool isABI_LP64S() const;
+  bool isABI_LP64F() const;
+  bool isABI_ILP32() const;
+  bool isABI_ILP32D() const;
+  bool isABI_ILP32F() const;
+  bool isABI_ILP32S() const;
   const LoongArchABIInfo &getABI() const;
 
   /// This constructor initializes the data members to match that
@@ -91,10 +93,10 @@ public:
   void ParseSubtargetFeatures(StringRef CPU, StringRef TuneCPU, StringRef FS);
 
   bool is64Bit() const { return HasLA64; }
-  bool isFP64bit() const { return IsFP64bit; }
+  bool hasBasicD() const { return HasBasicD; }
   unsigned getGPRSizeInBytes() const { return is64Bit() ? 8 : 4; }
-  bool isSingleFloat() const { return IsSingleFloat; }
-  bool useSoftFloat() const { return IsSoftFloat; }
+  bool hasBasicF() const { return HasBasicF; }
+  bool useSoftFloat() const { return (!HasBasicD && !HasBasicF); }
 
   // After compiler-rt is supported in LA, this returns true.
   bool isXRaySupported() const override { return false; }

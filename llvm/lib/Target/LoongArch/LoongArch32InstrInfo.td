@@ -55,6 +55,8 @@ let DecoderNamespace = "LoongArch32" in {
     def AND32   : Int_Reg3<"and", GPR32Opnd, and>, R3I<0b0101001>;
     def OR32    : Int_Reg3<"or", GPR32Opnd, or>, R3I<0b0101010>;
     def XOR32   : Int_Reg3<"xor", GPR32Opnd, xor>, R3I<0b0101011>;
+    def ANDN32  : Int_Reg3<"andn", GPR32Opnd>, R3I<0b0101101>;
+    def ORN32   : Int_Reg3<"orn", GPR32Opnd>, R3I<0b0101100>;
   }
 
   def SLL_W : Shift_Var<"sll.w", GPR32Opnd, shl>, R3I<0b0101110>;
@@ -302,8 +304,6 @@ def : LoongArchPat<(select i32:$cond, immz, i32:$f),
                    (MASKNEZ32 i32:$f, i32:$cond)>;
 
 // truncate
-def : LoongArchPat<(i32 (trunc (i64 (assertsext GPR64:$src)))),
-                   (EXTRACT_SUBREG GPR64:$src, sub_32)>, GPR_64;
 def : LoongArchPat<(i32 (trunc (assertzext_lt_i32 GPR64:$src))),
                    (EXTRACT_SUBREG GPR64:$src, sub_32)>, GPR_64;
 def : LoongArchPat<(i32 (trunc GPR64:$src)),
@@ -540,3 +540,185 @@ defm : SetlePats<GPR32, XORI32, SLT32, SLTU32>;
 defm : SetgtPats<GPR32, SLT32, SLTU32>;
 defm : SetgePats<GPR32, XORI32, SLT32, SLTU32>;
 defm : SetgeImmPats<GPR32, XORI32, SLTI32, SLTUI32>;
+
+def : LoongArchPat<(i64 (sext (i32 (xor (i32 (trunc (i64 (assertsext GPR64:$rj)))), (immZExt12:$imm12))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (XORI32 (EXTRACT_SUBREG GPR64:$rj, sub_32), (immZExt12:$imm12)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (add (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 (trunc (i64 (assertsext GPR64:$rk)))))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (ADD_W (EXTRACT_SUBREG GPR64:$rj, sub_32), (EXTRACT_SUBREG GPR64:$rk, sub_32)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (add (i32 (trunc (i64 (assertsext GPR64:$rj)))), (immSExt12:$imm12))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (ADDI_W (EXTRACT_SUBREG GPR64:$rj, sub_32), (immSExt12:$imm12)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (sra (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 (trunc (i64 (assertsext GPR64:$rk)))))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (SRA_W (EXTRACT_SUBREG GPR64:$rj, sub_32), (EXTRACT_SUBREG GPR64:$rk, sub_32)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (srl (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 (trunc (i64 (assertsext GPR64:$rk)))))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (SRL_W (EXTRACT_SUBREG GPR64:$rj, sub_32), (EXTRACT_SUBREG GPR64:$rk, sub_32)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (mul (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 (trunc (i64 (assertsext GPR64:$rk)))))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (MUL_W (EXTRACT_SUBREG GPR64:$rj, sub_32), (EXTRACT_SUBREG GPR64:$rk, sub_32)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (xor (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 (trunc (i64 (assertsext GPR64:$rk)))))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (XOR32 (EXTRACT_SUBREG GPR64:$rj, sub_32), (EXTRACT_SUBREG GPR64:$rk, sub_32)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (xor (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 GPR32:$rk))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (XOR32 (EXTRACT_SUBREG GPR64:$rj, sub_32), GPR32:$rk), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (or (i32 (trunc (i64 (assertsext GPR64:$rj)))), (uimm12_32:$imm12))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (ORI32 (EXTRACT_SUBREG GPR64:$rj, sub_32), (uimm12_32:$imm12)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (or (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 GPR32:$rk))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (OR32 (EXTRACT_SUBREG GPR64:$rj, sub_32), GPR32:$rk), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (select i32:$cond, (i32 (trunc (i64 (assertsext GPR64:$t)))), (i32 (trunc (i64 (assertsext GPR64:$f))))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (OR32 (MASKEQZ32 (EXTRACT_SUBREG GPR64:$t, sub_32), i32:$cond),
+                         (MASKNEZ32 (EXTRACT_SUBREG GPR64:$f, sub_32), i32:$cond)), sub_32)>;
+
+def : LoongArchPat<(i64 (sext (i32 (shl (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 (trunc (i64 (assertsext GPR64:$rk)))))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (SLL_W (EXTRACT_SUBREG GPR64:$rj, sub_32), (EXTRACT_SUBREG GPR64:$rk, sub_32)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (srem (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 (trunc (i64 (assertsext GPR64:$rk)))))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (MOD_W (EXTRACT_SUBREG GPR64:$rj, sub_32), (EXTRACT_SUBREG GPR64:$rk, sub_32)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(atomic_store_32 addr:$a, (i32 (trunc (i64 (assertsext GPR64:$rj))))),
+                   (ST_W32 (EXTRACT_SUBREG GPR64:$rj, sub_32), addr:$a)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (sub (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 (trunc (i64 (assertsext GPR64:$rk)))))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (SUB_W (EXTRACT_SUBREG GPR64:$rj, sub_32), (EXTRACT_SUBREG GPR64:$rk, sub_32)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (udiv (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 (trunc (i64 (assertsext GPR64:$rk)))))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (DIV_WU (EXTRACT_SUBREG GPR64:$rj, sub_32), (EXTRACT_SUBREG GPR64:$rk, sub_32)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(i64 (sext (i32 (urem (i32 (trunc (i64 (assertsext GPR64:$rj)))), (i32 (trunc (i64 (assertsext GPR64:$rk)))))))),
+                   (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
+                   (MOD_WU (EXTRACT_SUBREG GPR64:$rj, sub_32), (EXTRACT_SUBREG GPR64:$rk, sub_32)), sub_32)>, GPR_64;
+
+def : LoongArchPat<(brcond (i32 (seteq (i32 (trunc (i64 (assertsext GPR64:$rj)))), 0)), bb:$offs21),
+                   (BEQZ32 (EXTRACT_SUBREG GPR64:$rj, sub_32), brtarget:$offs21)>;
+
+def : LoongArchPat<(setne (i32 (trunc (i64 (assertsext GPR64:$rj)))), 0),
+                   (SLTU32 ZERO, (EXTRACT_SUBREG GPR64:$rj, sub_32))>;
+
+def : LoongArchPat<(select i32:$cond, (i32 (trunc (i64 (assertsext GPR64:$t)))), (i32 (trunc (i64 (assertsext GPR64:$f))))),
+                   (OR32 (MASKEQZ32 (EXTRACT_SUBREG GPR64:$t, sub_32), i32:$cond),
+                         (MASKNEZ32 (EXTRACT_SUBREG GPR64:$f, sub_32), i32:$cond))>;
+
+def : LoongArchPat<(select (i32 (setne (i32 (trunc (i64 (assertsext GPR64:$cond)))), immz)), immz, i32:$f),
+                   (MASKNEZ32 i32:$f, (EXTRACT_SUBREG GPR64:$cond, sub_32))>;
+
+def : LoongArchPat<(select (i32 (seteq (i32 (trunc (i64 (assertsext GPR64:$cond)))), immz)), immz, i32:$f),
+                   (MASKEQZ32 i32:$f, (EXTRACT_SUBREG GPR64:$cond, sub_32))>;
+
+  def : LoongArchPat<(store (i32 (trunc (i64 (assertsext GPR64:$v)))), addr:$a),
+                     (ST_W32 (EXTRACT_SUBREG GPR64:$v, sub_32), addr:$a)>;
+
+
+def : LoongArchPat<(i32 (xor GPR32:$rj, (i32 -1))),
+                   (NOR32 ZERO, GPR32:$rj)>;
+
+def : LoongArchPat<(and GPR32:$rj, (i32 (xor GPR32:$rk, (i32 -1)))),
+                   (ANDN32 GPR32:$rj, GPR32:$rk)>;
+
+def : LoongArchPat<
+                   (i64
+                     (sext
+                       (i32 (and (i32 (trunc (i64 (assertsext GPR64:$rj)))),
+                                 (i32 (xor (i32 (trunc (i64 (assertsext GPR64:$rk)))),
+                                           (i32 -1))))
+                       )
+                      )
+                     ),
+                   (INSERT_SUBREG
+                     (i64 (IMPLICIT_DEF)),
+                     (ANDN32 (EXTRACT_SUBREG GPR64:$rj, sub_32),
+                             (EXTRACT_SUBREG GPR64:$rk, sub_32)),
+                      sub_32
+                  )>;
+
+def : LoongArchPat<
+                  (i64
+                    (sext
+                      (i32 (or (i32 (trunc (i64 (assertsext GPR64:$rj)))),
+                               (i32 (xor (i32 (trunc (i64 (assertsext GPR64:$rk)))),
+                                         (i32 -1))))
+                      )
+                    )
+                  ),
+                   (INSERT_SUBREG
+                     (i64 (IMPLICIT_DEF)),
+                     (ORN32 (EXTRACT_SUBREG GPR64:$rj, sub_32),
+                            (EXTRACT_SUBREG GPR64:$rk, sub_32)),
+                    sub_32
+                  )>;
+
+def : LoongArchPat<(i64
+                     (sext
+                       (i32 (xor (i32 (or (i32 (trunc (i64 (assertsext GPR64:$rj)))),
+                                          (i32 (trunc (i64 (assertsext GPR64:$rk)))))),
+                                 (i32 -1))
+                       )
+                      )
+                    ),
+                   (INSERT_SUBREG
+                     (i64 (IMPLICIT_DEF)),
+                     (NOR32 (EXTRACT_SUBREG GPR64:$rj, sub_32),
+                            (EXTRACT_SUBREG GPR64:$rk, sub_32)),
+                    sub_32
+                   )>;
+
+def : LoongArchPat<(i64
+                     (sext
+                       (i32 (xor (i32 (trunc (i64 (or (i64 (assertsext GPR64:$rj)),
+                                                      (i64 (assertsext GPR64:$rk)))))),
+                                 (i32 -1))
+                       )
+                      )
+                    ),
+                   (INSERT_SUBREG
+                     (i64 (IMPLICIT_DEF)),
+                     (NOR32 (EXTRACT_SUBREG GPR64:$rk, sub_32),
+                            (EXTRACT_SUBREG GPR64:$rj, sub_32)),
+                    sub_32
+                   )>;
+
+def : LoongArchPat<(i64
+                      (sext
+                        (i32 (xor (i32 (trunc (i64 (assertsext GPR64:$rj)))),
+                                  (i32 -1))
+                        )
+                      )
+                    ),
+                   (INSERT_SUBREG
+                     (i64 (IMPLICIT_DEF)),
+                     (NOR32 ZERO, (EXTRACT_SUBREG GPR64:$rj, sub_32)),
+                   sub_32
+                  )>;
+
+def : LoongArchPat<(i64
+                     (zext
+                       (i32 (seteq (i32 (trunc (i64 (assertsext GPR64:$rj)))),
+                                   (i32 0))
+                       )
+                      )
+                    ),
+                   (INSERT_SUBREG
+                     (i64 (IMPLICIT_DEF)),
+                     (SLTUI32 (EXTRACT_SUBREG GPR64:$rj, sub_32), (i32 1)),
+                    sub_32
+                  )>;

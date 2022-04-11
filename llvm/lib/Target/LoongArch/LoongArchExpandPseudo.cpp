@@ -74,6 +74,9 @@ namespace {
     bool expandPseudoCall(MachineBasicBlock &BB,
                           MachineBasicBlock::iterator I,
                           MachineBasicBlock::iterator &NMBBI);
+    bool expandPseudoTailCall(MachineBasicBlock &BB,
+                              MachineBasicBlock::iterator I);
+
     bool expandPseudoTEQ(MachineBasicBlock &BB,
                          MachineBasicBlock::iterator I,
                          MachineBasicBlock::iterator &NMBBI);
@@ -329,6 +332,9 @@ bool LoongArchExpandPseudo::expandAtomicBinOpSubword(
 
   bool IsSwap = false;
   bool IsNand = false;
+  bool IsMAX = false;
+  bool IsMIN = false;
+  bool IsUnsigned = false;
 
   unsigned Opcode = 0;
   switch (I->getOpcode()) {
@@ -355,24 +361,30 @@ bool LoongArchExpandPseudo::expandAtomicBinOpSubword(
     LLVM_FALLTHROUGH;
   case LoongArch::ATOMIC_LOAD_MAX_I16_POSTRA:
     Opcode = LoongArch::AMMAX_DB_W;
+    IsMAX = true;
     break;
   case LoongArch::ATOMIC_LOAD_MIN_I8_POSTRA:
     SEOp = LoongArch::EXT_W_B32;
     LLVM_FALLTHROUGH;
   case LoongArch::ATOMIC_LOAD_MIN_I16_POSTRA:
     Opcode = LoongArch::AMMIN_DB_W;
+    IsMIN = true;
     break;
   case LoongArch::ATOMIC_LOAD_UMAX_I8_POSTRA:
     SEOp = LoongArch::EXT_W_B32;
     LLVM_FALLTHROUGH;
   case LoongArch::ATOMIC_LOAD_UMAX_I16_POSTRA:
     Opcode = LoongArch::AMMAX_DB_WU;
+    IsMAX = true;
+    IsUnsigned = true;
     break;
   case LoongArch::ATOMIC_LOAD_UMIN_I8_POSTRA:
     SEOp = LoongArch::EXT_W_B32;
     LLVM_FALLTHROUGH;
   case LoongArch::ATOMIC_LOAD_UMIN_I16_POSTRA:
     Opcode = LoongArch::AMMIN_DB_WU;
+    IsMIN = true;
+    IsUnsigned = true;
     break;
   case LoongArch::ATOMIC_LOAD_SUB_I8_POSTRA:
     SEOp = LoongArch::EXT_W_B32;
@@ -443,6 +455,34 @@ bool LoongArchExpandPseudo::expandAtomicBinOpSubword(
     BuildMI(loopMBB, DL, TII->get(LoongArch::AND32), BinOpRes)
         .addReg(BinOpRes)
         .addReg(Mask);
+  } else if (IsMAX || IsMIN) {
+
+    unsigned SLTScratch4 = IsUnsigned ? LoongArch::SLTU32 : LoongArch::SLT32;
+    unsigned CMPIncr = IsMAX ? LoongArch::MASKEQZ32 : LoongArch::MASKNEZ32;
+    unsigned CMPOldVal = IsMAX ? LoongArch::MASKNEZ32 : LoongArch::MASKEQZ32;
+
+    unsigned Scratch4 = I->getOperand(9).getReg();
+    unsigned Scratch5 = I->getOperand(10).getReg();
+
+    BuildMI(loopMBB, DL, TII->get(LoongArch::AND32), Scratch5)
+        .addReg(OldVal)
+        .addReg(Mask);
+    BuildMI(loopMBB, DL, TII->get(LoongArch::AND32), Incr)
+        .addReg(Incr)
+        .addReg(Mask);
+    BuildMI(loopMBB, DL, TII->get(SLTScratch4), Scratch4)
+        .addReg(Scratch5)
+        .addReg(Incr);
+    BuildMI(loopMBB, DL, TII->get(CMPOldVal), BinOpRes)
+        .addReg(Scratch5)
+        .addReg(Scratch4);
+    BuildMI(loopMBB, DL, TII->get(CMPIncr), Scratch4)
+        .addReg(Incr)
+        .addReg(Scratch4);
+    BuildMI(loopMBB, DL, TII->get(LoongArch::OR32), BinOpRes)
+        .addReg(BinOpRes)
+        .addReg(Scratch4);
+
   } else if (!IsSwap) {
     //  <binop> binopres, oldval, incr2
     //  and newval, binopres, mask
@@ -464,13 +504,19 @@ bool LoongArchExpandPseudo::expandAtomicBinOpSubword(
   // StoreVal<tied1> = sc StoreVal, 0(Ptr)
   // beq StoreVal, zero, loopMBB
   BuildMI(loopMBB, DL, TII->get(LoongArch::AND32), StoreVal)
-    .addReg(OldVal).addReg(Mask2);
+      .addReg(OldVal)
+      .addReg(Mask2);
   BuildMI(loopMBB, DL, TII->get(LoongArch::OR32), StoreVal)
-    .addReg(StoreVal).addReg(BinOpRes);
+      .addReg(StoreVal)
+      .addReg(BinOpRes);
   BuildMI(loopMBB, DL, TII->get(SC), StoreVal)
-    .addReg(StoreVal).addReg(Ptr).addImm(0);
+      .addReg(StoreVal)
+      .addReg(Ptr)
+      .addImm(0);
   BuildMI(loopMBB, DL, TII->get(BEQ))
-    .addReg(StoreVal).addReg(LoongArch::ZERO).addMBB(loopMBB);
+      .addReg(StoreVal)
+      .addReg(LoongArch::ZERO)
+      .addMBB(loopMBB);
 
   //  sinkMBB:
   //    and     maskedoldval1,oldval,mask
@@ -480,9 +526,11 @@ bool LoongArchExpandPseudo::expandAtomicBinOpSubword(
   sinkMBB->addSuccessor(exitMBB, BranchProbability::getOne());
 
   BuildMI(sinkMBB, DL, TII->get(LoongArch::AND32), Dest)
-    .addReg(OldVal).addReg(Mask);
+      .addReg(OldVal)
+      .addReg(Mask);
   BuildMI(sinkMBB, DL, TII->get(LoongArch::SRL_W), Dest)
-      .addReg(Dest).addReg(ShiftAmnt);
+      .addReg(Dest)
+      .addReg(ShiftAmnt);
 
   BuildMI(sinkMBB, DL, TII->get(SEOp), Dest).addReg(Dest);
 
@@ -867,6 +915,31 @@ bool LoongArchExpandPseudo::expandLoadAddr(MachineBasicBlock &BB,
   return true;
 }
 
+bool LoongArchExpandPseudo::expandPseudoTailCall(
+    MachineBasicBlock &BB, MachineBasicBlock::iterator I) {
+
+  MachineFunction *MF = BB.getParent();
+  MachineInstr &MI = *I;
+  DebugLoc DL = MI.getDebugLoc();
+
+  const MachineOperand &MO = MI.getOperand(0);
+
+  unsigned NoFlag = LoongArchII::MO_NO_FLAG;
+
+  MachineInstrBuilder MIB =
+      BuildMI(BB, I, DL, TII->get(LoongArch::PseudoTailReturn));
+
+  if (MO.isSymbol()) {
+    MIB.addExternalSymbol(MO.getSymbolName(), NoFlag);
+  } else {
+    MIB.addDisp(MO, 0, NoFlag);
+  }
+
+  MI.eraseFromParent();
+
+  return true;
+}
+
 bool LoongArchExpandPseudo::expandPseudoCall(MachineBasicBlock &BB,
                                            MachineBasicBlock::iterator I,
                                            MachineBasicBlock::iterator &NMBBI) {
@@ -977,6 +1050,8 @@ bool LoongArchExpandPseudo::expandMI(MachineBasicBlock &MBB,
     return expandPseudoTEQ(MBB, MBBI, NMBB);
   case LoongArch::PseudoCall:
     return expandPseudoCall(MBB, MBBI, NMBB);
+  case LoongArch::PseudoTailCall:
+    return expandPseudoTailCall(MBB, MBBI);
   case LoongArch::LoadAddrLocal:
   case LoongArch::LoadAddrLocalRR:
   case LoongArch::LoadAddrGlobal:

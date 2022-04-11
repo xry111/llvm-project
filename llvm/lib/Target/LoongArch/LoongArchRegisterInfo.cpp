@@ -88,16 +88,13 @@ const MCPhysReg *
 LoongArchRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   const LoongArchSubtarget &Subtarget = MF->getSubtarget<LoongArchSubtarget>();
 
-  if (Subtarget.isSingleFloat())
+  if ((Subtarget.hasBasicF() && !Subtarget.hasBasicD()))
     return CSR_SingleFloatOnly_SaveList;
 
   if (Subtarget.isABI_LP64D())
     return CSR_LP64_SaveList;
 
-  if (Subtarget.isABI_LPX32())
-    return CSR_LPX32_SaveList;
-
-  return CSR_LP32_SaveList;
+  return CSR_ILP32_SaveList;
 }
 
 const uint32_t *
@@ -105,13 +102,13 @@ LoongArchRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const {
   const LoongArchSubtarget &Subtarget = MF.getSubtarget<LoongArchSubtarget>();
 
-  if (Subtarget.isSingleFloat())
+  if ((Subtarget.hasBasicF() && !Subtarget.hasBasicD()))
     return CSR_SingleFloatOnly_RegMask;
 
   if (Subtarget.isABI_LP64D())
     return CSR_LP64_RegMask;
 
-  return CSR_LP32_RegMask;
+  return CSR_ILP32_RegMask;
 }
 
 BitVector LoongArchRegisterInfo::

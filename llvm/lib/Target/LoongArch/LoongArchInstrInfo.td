@@ -1306,6 +1306,31 @@ def PseudoCall : LoongArchPseudo<(outs), (ins calltarget:$target),
                                         []>;
 }
 
+let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1, Uses = [SP] in
+def PseudoTailCall : LoongArchPseudo<(outs), (ins calltarget:$target),
+                                     []>;
+
+class PseudoTailBase<DAGOperand opnd> : LoongArchPseudo<(outs), (ins opnd:$offset26),
+                                                        []> {
+  let isTerminator = 1;
+  let isBarrier = 1;
+  let isReturn = 1;
+  let isCodeGenOnly = 1;
+}
+def PseudoTailReturn : PseudoTailBase<calltarget>;
+
+
+def : LoongArchPat<(LoongArchTailCall tglobaladdr:$dst),
+                   (PseudoTailCall tglobaladdr:$dst)>;
+
+def : LoongArchPat<(LoongArchTailCall texternalsym:$dst),
+                   (PseudoTailCall texternalsym:$dst)>;
+
+let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1,  isIndirectBranch = 1, Uses = [SP] in
+def PseudoTAILIndirect : LoongArchPseudo<(outs), (ins GPRTC64Opnd:$rj), [(LoongArchTailCall GPRTC64Opnd:$rj)]>,
+                         PseudoInstExpansion<(JIRL ZERO_64, GPR64Opnd:$rj, 0)>;
+
+
 def : LoongArchPat<(LoongArchJmpLink tglobaladdr:$dst),
               (PseudoCall tglobaladdr:$dst)>;
 
@@ -1559,6 +1584,12 @@ let isCodeGenOnly = 1 in {
       let InOperandList = (ins GPR64:$rj) in
         def SLLI_W_64_64 : Shift_Imm32<"", GPR32Opnd>, R2_IMM5<0b00>, GPR_64;
   }
+
+  let AsmString = "sltui\t$rd, $rj, $imm12",
+      OutOperandList = (outs GPR64:$rd) in {
+      let InOperandList = (ins GPR64:$rj, simm12:$imm12) in
+        def SLTUI_64 : SetCC_I<"", GPR64Opnd, simm12>, R2_IMM12<0b001>, GPR_64;
+  }
 }
 
 // 32-to-64-bit extension
@@ -1781,3 +1812,16 @@ def : LoongArchPat<(i64 (sext (i32 (sra GPR32:$src, immZExt5:$imm5)))),
 def : LoongArchPat<(i64 (sext (i32 (sra GPR32:$src, GPR32:$src2)))),
               (INSERT_SUBREG (i64 (IMPLICIT_DEF)),
               (SRA_W GPR32:$src, GPR32:$src2), sub_32)>;
+
+
+def : LoongArchPat<(i64 (xor GPR64:$rj, (i64 -1))),
+                   (NOR ZERO_64, GPR64:$rj)>;
+
+def : LoongArchPat<(and GPR64:$rj, (i64 (xor GPR64:$rk, (i64 -1)))),
+                   (ANDN GPR64:$rj, GPR64:$rk)>;
+
+def : LoongArchPat<(i64 (or GPR64:$rj, (xor GPR64:$rk, (i64 -1)))),
+                   (ORN GPR64:$rj, GPR64:$rk)>;
+
+def : LoongArchPat<(i64 (zext (i32 (seteq GPR64:$rj, (i64 0))))),
+                   (SLTUI_64 GPR64:$rj, (i64 1))>;
