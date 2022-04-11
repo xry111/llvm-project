@@ -179,7 +179,8 @@ getFixupKindInfo(MCFixupKind Kind) const {
 /// it should return an error.
 ///
 /// \return - True on success.
-bool LoongArchAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count) const {
+bool LoongArchAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,
+                                       const MCSubtargetInfo *STI) const {
   // Check for a less than instruction size number of bytes
   if ((Count % 4) != 0)
     return false;
