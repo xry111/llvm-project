@@ -918,7 +918,6 @@ bool LoongArchExpandPseudo::expandLoadAddr(MachineBasicBlock &BB,
 bool LoongArchExpandPseudo::expandPseudoTailCall(
     MachineBasicBlock &BB, MachineBasicBlock::iterator I) {
 
-  MachineFunction *MF = BB.getParent();
   MachineInstr &MI = *I;
   DebugLoc DL = MI.getDebugLoc();
 

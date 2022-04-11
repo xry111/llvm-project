@@ -229,7 +229,5 @@ MCAsmBackend *llvm::createLoongArchAsmBackend(const Target &T,
                                               const MCSubtargetInfo &STI,
                                               const MCRegisterInfo &MRI,
                                               const MCTargetOptions &Options) {
-  LoongArchABIInfo ABI = LoongArchABIInfo::computeTargetABI(
-                           STI.getTargetTriple(), STI.getCPU(), Options);
   return new LoongArchAsmBackend(T, MRI, STI.getTargetTriple(), STI.getCPU());
 }

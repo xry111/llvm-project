@@ -45,8 +45,6 @@ namespace {
 
 bool LoongArchModuleDAGToDAGISel::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(errs() << "In LoongArchModuleDAGToDAGISel::runMachineFunction\n");
-  auto &TPC = getAnalysis<TargetPassConfig>();
-  auto &TM = TPC.getTM<LoongArchTargetMachine>();
   return false;
 }
 

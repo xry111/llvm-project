@@ -2251,7 +2251,6 @@ bool LoongArchTargetLowering::isEligibleForTailCallOptimization(
     const CCState &CCInfo, CallLoweringInfo &CLI, MachineFunction &MF,
     unsigned NextStackOffset, const LoongArchFunctionInfo &FI) const {
 
-  auto &Callee = CLI.Callee;
   auto CalleeCC = CLI.CallConv;
   auto IsVarArg = CLI.IsVarArg;
   auto &Outs = CLI.Outs;
