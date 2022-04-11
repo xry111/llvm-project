@@ -3,4 +3,7 @@ add_llvm_component_library(LLVMLoongArchDisassembler
 
   ADD_TO_COMPONENT
   LoongArch
+
+  LINK_COMPONENTS
+  MCDisassembler
   )

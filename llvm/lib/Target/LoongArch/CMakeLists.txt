@@ -34,6 +34,11 @@ add_llvm_target(LoongArchCodeGen
 
   ADD_TO_COMPONENT
   LoongArch
+
+  LINK_COMPONENTS
+  AsmPrinter
+  CodeGen
+  SelectionDAG
   )
 
 add_subdirectory(AsmParser)
