@@ -70,10 +70,13 @@ static bool requiresFixups(MCContext &C, const MCExpr *Value,
                            MCConstantExpr::create(E.getConstant(), C), C);
   RHS = E.getSymB();
 
+  return true;
+/*
   return (A.isInSection() ? A.getSection().hasInstructions()
                           : !A.getName().empty()) ||
          (B.isInSection() ? B.getSection().hasInstructions()
                           : !B.getName().empty());
+*/
 }
 
 
