@@ -65,6 +65,11 @@ static bool requiresFixups(MCContext &C, const MCExpr *Value,
       !A.getName().empty() && !B.getName().empty())
     return false;
 
+  /* On ELF A - B is absolute if A and B are in the same section. */
+  if (A.isInSection() && B.isInSection() &&
+      &A.getSection() == &B.getSection())
+    return false;
+
   LHS =
       MCBinaryExpr::create(MCBinaryExpr::Add, MCSymbolRefExpr::create(&A, C),
                            MCConstantExpr::create(E.getConstant(), C), C);
