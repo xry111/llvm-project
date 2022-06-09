@@ -75,7 +75,9 @@ def LoongArchInstrInfo : InstrInfo;
 // LoongArch processors supported.
 //===----------------------------------------------------------------------===//
 
-def : ProcessorModel<"la464", NoSchedModel, [Feature64Bit]>;
+def : ProcessorModel<"generic-la32", NoSchedModel, []>;
+def : ProcessorModel<"generic-la64", NoSchedModel, [Feature64Bit]>;
+def : ProcessorModel<"la464", NoSchedModel, [Feature64Bit, FeatureBasicD]>;
 
 def LoongArchAsmParser : AsmParser {
   let ShouldEmitMatchRegisterName = 0;
